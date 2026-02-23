@@ -1,281 +1,191 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Glen Track</title>
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0b1220" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
-  <link rel="manifest" href="manifest.webmanifest">
+  <title>Glen Track</title>
+
+  <!-- iOS Home Screen title -->
+  <meta name="apple-mobile-web-app-title" content="Glen Track" />
+
   <link rel="stylesheet" href="styles.css" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 
 <body>
-  <header class="appbar">
+  <header class="topbar">
     <div class="brand">
-      <div class="brand-mark">⚡</div>
-      <div class="brand-text">
-        <div class="brand-name">Glen Track</div>
-        <div class="brand-sub" id="brandSub">Your personal fitness OS</div>
+      <div class="brandIcon">G</div>
+      <div class="brandText">
+        <div class="brandName">Glen Track</div>
+        <div class="brandSub" id="subTitle">Dashboard</div>
       </div>
     </div>
-
-    <div class="status">
-      <div class="pill" id="statusPill">Loaded</div>
-    </div>
+    <div class="statusPill" id="statusPill">Ready</div>
   </header>
 
-  <main class="shell">
+  <main class="app">
     <!-- DASHBOARD -->
-    <section class="page active" id="page-dashboard" aria-label="Dashboard">
-      <div class="hero">
-        <div class="hero-title">Dashboard</div>
-        <div class="hero-sub">Last 7 days — no fluff, just signal.</div>
-      </div>
-
-      <div class="grid">
-        <div class="card stat">
-          <div class="stat-label">Latest Weight</div>
-          <div class="stat-value" id="statLatestWeight">—</div>
-          <div class="stat-foot" id="statLatestWeightFoot">No weigh-ins yet</div>
-        </div>
-
-        <div class="card stat">
-          <div class="stat-label">Avg Weight (7d)</div>
-          <div class="stat-value" id="statAvgWeight">—</div>
-          <div class="stat-foot" id="statWeightDelta">—</div>
-        </div>
-
-        <div class="card stat">
-          <div class="stat-label">Avg Calories (7d)</div>
-          <div class="stat-value" id="statAvgCalories">—</div>
-          <div class="stat-foot" id="statAvgProtein">—</div>
-        </div>
-
-        <div class="card stat">
-          <div class="stat-label">Workouts (7d)</div>
-          <div class="stat-value" id="statWorkoutCount">—</div>
-          <div class="stat-foot" id="statWorkoutVolume">—</div>
+    <section class="screen active" id="screen-dashboard" aria-label="Dashboard">
+      <div class="card">
+        <div class="cardTitle">Today</div>
+        <div class="grid2">
+          <div class="miniStat">
+            <div class="miniLabel">Latest Weight</div>
+            <div class="miniValue" id="dashLatestWeight">—</div>
+            <div class="miniHint" id="dashLatestWeightHint">No entries yet</div>
+          </div>
+          <div class="miniStat">
+            <div class="miniLabel">Macros (Today)</div>
+            <div class="miniValue" id="dashMacros">—</div>
+            <div class="miniHint" id="dashMacrosHint">Calories / P / C / F</div>
+          </div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-head">
-          <div>
-            <div class="card-title">Weight Trend</div>
-            <div class="card-sub">Last 30 entries</div>
-          </div>
+        <div class="cardTitle">Trends</div>
+        <div class="chartWrap">
+          <canvas id="weightChart" height="170"></canvas>
         </div>
-        <div class="chart" id="dashWeightChart"></div>
       </div>
 
       <div class="card">
-        <div class="card-head">
-          <div>
-            <div class="card-title">Macros Trend</div>
-            <div class="card-sub">Last 14 days (Calories + Protein)</div>
+        <div class="cardTitle">This Week</div>
+        <div class="grid2">
+          <div class="miniStat">
+            <div class="miniLabel">Workouts</div>
+            <div class="miniValue" id="dashWorkoutsWeek">—</div>
+            <div class="miniHint">Last 7 days</div>
+          </div>
+          <div class="miniStat">
+            <div class="miniLabel">Weight Avg</div>
+            <div class="miniValue" id="dashWeightAvg7">—</div>
+            <div class="miniHint">7-day average</div>
           </div>
         </div>
-        <div class="chart" id="dashMacroChart"></div>
       </div>
     </section>
 
     <!-- WEIGHT -->
-    <section class="page" id="page-weight" aria-label="Weight">
-      <div class="hero">
-        <div class="hero-title">Weight</div>
-        <div class="hero-sub">One entry per day. Overwrites if you log again.</div>
+    <section class="screen" id="screen-weight" aria-label="Weight">
+      <div class="card">
+        <div class="cardTitle">Weight Log</div>
+
+        <label class="label">Date</label>
+        <input class="input" id="weightDate" type="date" />
+
+        <label class="label">Weight (lbs)</label>
+        <div class="row">
+          <input class="input" id="weightValue" type="number" inputmode="decimal" step="0.1" placeholder="e.g., 195.0" />
+          <button class="btn primary" id="btnAddWeight">Add</button>
+        </div>
+
+        <div class="row">
+          <button class="btn ghost" id="btnClearWeights">Clear All</button>
+          <button class="btn ghost" id="btnExportWeights">Export</button>
+        </div>
       </div>
 
       <div class="card">
-        <div class="form-grid">
-          <label class="field">
-            <span>Date</span>
-            <input id="weightDate" type="date" />
-          </label>
-
-          <label class="field">
-            <span>Weight (lbs)</span>
-            <input id="weightValue" type="number" inputmode="decimal" pattern="[0-9]*" step="0.1" placeholder="195.0" />
-          </label>
-        </div>
-
-        <div class="btn-row">
-          <button class="btn primary" id="btnSaveWeight">Save Weight</button>
-          <button class="btn ghost" id="btnClearWeights">Clear All</button>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="card-head">
-          <div>
-            <div class="card-title">History</div>
-            <div class="card-sub" id="weightCount">0 entries</div>
-          </div>
-        </div>
-
-        <div class="list" id="weightList"></div>
-
-        <div class="divider"></div>
-
-        <div class="card-head">
-          <div>
-            <div class="card-title">Chart</div>
-            <div class="card-sub">All entries</div>
-          </div>
-        </div>
-        <div class="chart" id="weightChart"></div>
+        <div class="cardTitle">History</div>
+        <div id="weightsList" class="list"></div>
       </div>
     </section>
 
     <!-- MACROS -->
-    <section class="page" id="page-macros" aria-label="Macros">
-      <div class="hero">
-        <div class="hero-title">Macros</div>
-        <div class="hero-sub">One entry per day. Overwrites if you log again.</div>
+    <section class="screen" id="screen-macros" aria-label="Macros">
+      <div class="card">
+        <div class="cardTitle">Macros</div>
+
+        <label class="label">Date</label>
+        <input class="input" id="macroDate" type="date" />
+
+        <div class="grid2">
+          <div>
+            <label class="label">Calories</label>
+            <input class="input" id="calories" type="number" inputmode="numeric" step="1" placeholder="e.g., 2200" />
+          </div>
+          <div>
+            <label class="label">Protein (g)</label>
+            <input class="input" id="protein" type="number" inputmode="numeric" step="1" placeholder="e.g., 180" />
+          </div>
+          <div>
+            <label class="label">Carbs (g)</label>
+            <input class="input" id="carbs" type="number" inputmode="numeric" step="1" placeholder="e.g., 200" />
+          </div>
+          <div>
+            <label class="label">Fat (g)</label>
+            <input class="input" id="fat" type="number" inputmode="numeric" step="1" placeholder="e.g., 70" />
+          </div>
+        </div>
+
+        <div class="row">
+          <button class="btn primary" id="btnSaveMacros">Save</button>
+          <button class="btn ghost" id="btnClearMacros">Clear</button>
+        </div>
       </div>
 
       <div class="card">
-        <label class="field">
-          <span>Date</span>
-          <input id="macroDate" type="date" />
-        </label>
-
-        <div class="form-grid-2">
-          <label class="field">
-            <span>Calories</span>
-            <input id="macroCalories" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="2200" />
-          </label>
-
-          <label class="field">
-            <span>Protein (g)</span>
-            <input id="macroProtein" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="170" />
-          </label>
-
-          <label class="field">
-            <span>Carbs (g)</span>
-            <input id="macroCarbs" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="250" />
-          </label>
-
-          <label class="field">
-            <span>Fat (g)</span>
-            <input id="macroFat" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="70" />
-          </label>
-        </div>
-
-        <div class="btn-row">
-          <button class="btn primary" id="btnSaveMacros">Save Macros</button>
-          <button class="btn ghost" id="btnClearMacros">Clear All</button>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="card-head">
-          <div>
-            <div class="card-title">History</div>
-            <div class="card-sub" id="macroCount">0 entries</div>
-          </div>
-        </div>
-
-        <div class="list" id="macroList"></div>
-
-        <div class="divider"></div>
-
-        <div class="card-head">
-          <div>
-            <div class="card-title">Chart</div>
-            <div class="card-sub">Calories + Protein</div>
-          </div>
-        </div>
-
-        <div class="chart" id="macroChart"></div>
+        <div class="cardTitle">Saved (Selected Date)</div>
+        <pre class="codeBox" id="macrosPreview">{}</pre>
       </div>
     </section>
 
     <!-- WORKOUTS -->
-    <section class="page" id="page-workouts" aria-label="Workouts">
-      <div class="hero">
-        <div class="hero-title">Workouts</div>
-        <div class="hero-sub">Templates auto-fill. Edit before saving.</div>
+    <section class="screen" id="screen-workouts" aria-label="Workouts">
+      <div class="card">
+        <div class="cardTitle">Workouts</div>
+
+        <label class="label">Date</label>
+        <input class="input" id="workoutDate" type="date" />
+
+        <label class="label">Template</label>
+        <div class="row">
+          <button class="btn chip" data-template="push">Push</button>
+          <button class="btn chip" data-template="pull">Pull</button>
+          <button class="btn chip" data-template="legs">Legs</button>
+        </div>
+
+        <label class="label">Workout (edit as needed)</label>
+        <textarea class="input textarea" id="workoutText" rows="10" placeholder="Template will auto-fill here."></textarea>
+
+        <div class="row">
+          <button class="btn primary" id="btnSaveWorkout">Save</button>
+          <button class="btn ghost" id="btnClearWorkout">Clear</button>
+        </div>
       </div>
 
       <div class="card">
-        <div class="form-grid">
-          <label class="field">
-            <span>Date</span>
-            <input id="workoutDate" type="date" />
-          </label>
-
-          <label class="field">
-            <span>Workout Name</span>
-            <input id="workoutName" type="text" placeholder="e.g., Push Day" />
-          </label>
-        </div>
-
-        <div class="template-row">
-          <label class="field">
-            <span>Template</span>
-            <select id="workoutTemplate">
-              <option value="custom">Custom</option>
-              <option value="push">Push</option>
-              <option value="pull">Pull</option>
-              <option value="legs">Legs</option>
-            </select>
-          </label>
-
-          <button class="btn" id="btnApplyTemplate" type="button">Auto-fill</button>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="card-head">
-          <div>
-            <div class="card-title">Exercises</div>
-            <div class="card-sub">Use + to add, or edit fields directly</div>
-          </div>
-        </div>
-
-        <div id="exerciseEditor" class="exercise-editor"></div>
-
-        <div class="btn-row">
-          <button class="btn" id="btnAddExercise" type="button">+ Add Exercise</button>
-          <button class="btn primary" id="btnSaveWorkout" type="button">Save Workout</button>
-        </div>
-
-        <div class="btn-row">
-          <button class="btn ghost" id="btnClearWorkouts" type="button">Clear All</button>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="card-head">
-          <div>
-            <div class="card-title">History</div>
-            <div class="card-sub" id="workoutCount">0 workouts</div>
-          </div>
-        </div>
-
-        <div class="list" id="workoutList"></div>
+        <div class="cardTitle">History</div>
+        <div id="workoutsList" class="list"></div>
       </div>
     </section>
   </main>
 
-  <!-- Bottom Nav -->
-  <nav class="bottom-nav" aria-label="Navigation">
-    <button class="nav-btn active" data-go="dashboard" aria-label="Dashboard">
-      <div class="icon">📊</div><div class="txt">Dash</div>
+  <!-- Bottom Tab Bar -->
+  <nav class="tabbar" aria-label="Bottom Navigation">
+    <button class="tab active" data-go="dashboard">
+      <span class="tabIcon">▦</span>
+      <span class="tabLabel">Dashboard</span>
     </button>
-    <button class="nav-btn" data-go="weight" aria-label="Weight">
-      <div class="icon">🏋️</div><div class="txt">Weight</div>
+    <button class="tab" data-go="weight">
+      <span class="tabIcon">⚖︎</span>
+      <span class="tabLabel">Weight</span>
     </button>
-    <button class="nav-btn" data-go="macros" aria-label="Macros">
-      <div class="icon">🍽️</div><div class="txt">Macros</div>
+    <button class="tab" data-go="macros">
+      <span class="tabIcon">⛽︎</span>
+      <span class="tabLabel">Macros</span>
     </button>
-    <button class="nav-btn" data-go="workouts" aria-label="Workouts">
-      <div class="icon">🔥</div><div class="txt">Workouts</div>
+    <button class="tab" data-go="workouts">
+      <span class="tabIcon">🏋︎</span>
+      <span class="tabLabel">Workouts</span>
     </button>
   </nav>
 
