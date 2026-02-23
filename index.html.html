@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FitTrack</title>
+
+  <!-- MUST match the file name exactly: styles.css -->
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>⚡ FitTrack</h1>
+    <div id="status" class="status">Ready</div>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>Quick Test</h2>
+      <p>This is just to prove Save + localStorage works.</p>
+
+      <label for="testInput">Type something</label>
+      <input id="testInput" type="text" placeholder="e.g., 195" />
+
+      <button id="saveBtn" type="button">Save</button>
+      <button id="loadBtn" type="button">Load</button>
+      <button id="clearBtn" type="button">Clear</button>
+
+      <pre id="out" class="out"></pre>
+    </section>
+  </main>
+
+  <!-- MUST match file name exactly: app.js -->
+  <!-- defer ensures JS runs after HTML exists -->
+  <script src="./app.js" defer></script>
+</body>
+</html>
