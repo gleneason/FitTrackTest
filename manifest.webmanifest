@@ -1,0 +1,15 @@
+{
+  "name": "FitTrack",
+  "short_name": "FitTrack",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
+  "icons": [
+    {
+      "src": "https://www.gstatic.com/images/branding/product/1x/fitness_512dp.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
