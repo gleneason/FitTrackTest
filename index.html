@@ -3,141 +3,282 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>FitTrack</title>
+  <title>Glen Track</title>
 
-  <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0b1220" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css" />
 </head>
 
 <body>
-  <header class="topbar">
-    <div class="brand">⚡ FitTrack</div>
-    <div id="statusPill" class="pill">Ready</div>
+  <header class="appbar">
+    <div class="brand">
+      <div class="brand-mark">⚡</div>
+      <div class="brand-text">
+        <div class="brand-name">Glen Track</div>
+        <div class="brand-sub" id="brandSub">Your personal fitness OS</div>
+      </div>
+    </div>
+
+    <div class="status">
+      <div class="pill" id="statusPill">Loaded</div>
+    </div>
   </header>
 
-  <nav class="tabs">
-    <button class="tab active" data-tab="weight">Weight</button>
-    <button class="tab" data-tab="macros">Macros</button>
-    <button class="tab" data-tab="workouts">Workouts</button>
-    <button class="tab" data-tab="dashboard">Dashboard</button>
-  </nav>
-
-  <main class="container">
-    <!-- WEIGHT -->
-    <section id="tab-weight" class="panel active">
-      <h1>Weight Log</h1>
-
-      <label>Date</label>
-      <input id="weightDate" type="date" />
-
-      <label>Weight (lbs)</label>
-      <div class="row">
-        <input id="weightValue" type="number" step="0.1" placeholder="e.g., 195.0" />
-        <button id="addWeight">Add</button>
+  <main class="shell">
+    <!-- DASHBOARD -->
+    <section class="page active" id="page-dashboard" aria-label="Dashboard">
+      <div class="hero">
+        <div class="hero-title">Dashboard</div>
+        <div class="hero-sub">Last 7 days — no fluff, just signal.</div>
       </div>
 
-      <button id="clearWeights" class="danger">Clear All</button>
+      <div class="grid">
+        <div class="card stat">
+          <div class="stat-label">Latest Weight</div>
+          <div class="stat-value" id="statLatestWeight">—</div>
+          <div class="stat-foot" id="statLatestWeightFoot">No weigh-ins yet</div>
+        </div>
 
-      <h2>History</h2>
-      <div id="weightList" class="list"></div>
+        <div class="card stat">
+          <div class="stat-label">Avg Weight (7d)</div>
+          <div class="stat-value" id="statAvgWeight">—</div>
+          <div class="stat-foot" id="statWeightDelta">—</div>
+        </div>
 
-      <h2>Chart</h2>
-      <canvas id="weightChart" height="160"></canvas>
+        <div class="card stat">
+          <div class="stat-label">Avg Calories (7d)</div>
+          <div class="stat-value" id="statAvgCalories">—</div>
+          <div class="stat-foot" id="statAvgProtein">—</div>
+        </div>
+
+        <div class="card stat">
+          <div class="stat-label">Workouts (7d)</div>
+          <div class="stat-value" id="statWorkoutCount">—</div>
+          <div class="stat-foot" id="statWorkoutVolume">—</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Weight Trend</div>
+            <div class="card-sub">Last 30 entries</div>
+          </div>
+        </div>
+        <div class="chart" id="dashWeightChart"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Macros Trend</div>
+            <div class="card-sub">Last 14 days (Calories + Protein)</div>
+          </div>
+        </div>
+        <div class="chart" id="dashMacroChart"></div>
+      </div>
+    </section>
+
+    <!-- WEIGHT -->
+    <section class="page" id="page-weight" aria-label="Weight">
+      <div class="hero">
+        <div class="hero-title">Weight</div>
+        <div class="hero-sub">One entry per day. Overwrites if you log again.</div>
+      </div>
+
+      <div class="card">
+        <div class="form-grid">
+          <label class="field">
+            <span>Date</span>
+            <input id="weightDate" type="date" />
+          </label>
+
+          <label class="field">
+            <span>Weight (lbs)</span>
+            <input id="weightValue" type="number" inputmode="decimal" pattern="[0-9]*" step="0.1" placeholder="195.0" />
+          </label>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn primary" id="btnSaveWeight">Save Weight</button>
+          <button class="btn ghost" id="btnClearWeights">Clear All</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="card-head">
+          <div>
+            <div class="card-title">History</div>
+            <div class="card-sub" id="weightCount">0 entries</div>
+          </div>
+        </div>
+
+        <div class="list" id="weightList"></div>
+
+        <div class="divider"></div>
+
+        <div class="card-head">
+          <div>
+            <div class="card-title">Chart</div>
+            <div class="card-sub">All entries</div>
+          </div>
+        </div>
+        <div class="chart" id="weightChart"></div>
+      </div>
     </section>
 
     <!-- MACROS -->
-    <section id="tab-macros" class="panel">
-      <h1>Macros</h1>
-
-      <label>Date</label>
-      <input id="macroDate" type="date" />
-
-      <div class="grid2">
-        <div>
-          <label>Calories</label>
-          <input id="calories" type="number" placeholder="e.g., 2400" />
-        </div>
-        <div>
-          <label>Protein (g)</label>
-          <input id="protein" type="number" placeholder="e.g., 180" />
-        </div>
-        <div>
-          <label>Carbs (g)</label>
-          <input id="carbs" type="number" placeholder="e.g., 250" />
-        </div>
-        <div>
-          <label>Fat (g)</label>
-          <input id="fat" type="number" placeholder="e.g., 70" />
-        </div>
+    <section class="page" id="page-macros" aria-label="Macros">
+      <div class="hero">
+        <div class="hero-title">Macros</div>
+        <div class="hero-sub">One entry per day. Overwrites if you log again.</div>
       </div>
 
-      <button id="saveMacros">Save Macros</button>
+      <div class="card">
+        <label class="field">
+          <span>Date</span>
+          <input id="macroDate" type="date" />
+        </label>
 
-      <h2>History</h2>
-      <div id="macroList" class="list"></div>
+        <div class="form-grid-2">
+          <label class="field">
+            <span>Calories</span>
+            <input id="macroCalories" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="2200" />
+          </label>
 
-      <h2>Chart</h2>
-      <canvas id="macroChart" height="160"></canvas>
+          <label class="field">
+            <span>Protein (g)</span>
+            <input id="macroProtein" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="170" />
+          </label>
+
+          <label class="field">
+            <span>Carbs (g)</span>
+            <input id="macroCarbs" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="250" />
+          </label>
+
+          <label class="field">
+            <span>Fat (g)</span>
+            <input id="macroFat" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="70" />
+          </label>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn primary" id="btnSaveMacros">Save Macros</button>
+          <button class="btn ghost" id="btnClearMacros">Clear All</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="card-head">
+          <div>
+            <div class="card-title">History</div>
+            <div class="card-sub" id="macroCount">0 entries</div>
+          </div>
+        </div>
+
+        <div class="list" id="macroList"></div>
+
+        <div class="divider"></div>
+
+        <div class="card-head">
+          <div>
+            <div class="card-title">Chart</div>
+            <div class="card-sub">Calories + Protein</div>
+          </div>
+        </div>
+
+        <div class="chart" id="macroChart"></div>
+      </div>
     </section>
 
     <!-- WORKOUTS -->
-    <section id="tab-workouts" class="panel">
-      <h1>Workouts</h1>
-
-      <label>Date</label>
-      <input id="workoutDate" type="date" />
-
-      <label>Exercise</label>
-      <input id="exerciseName" type="text" placeholder="e.g., Bench Press" />
-
-      <div class="grid3">
-        <div>
-          <label>Sets</label>
-          <input id="sets" type="number" placeholder="4" />
-        </div>
-        <div>
-          <label>Reps</label>
-          <input id="reps" type="number" placeholder="8" />
-        </div>
-        <div>
-          <label>Weight</label>
-          <input id="liftWeight" type="number" step="0.5" placeholder="185" />
-        </div>
+    <section class="page" id="page-workouts" aria-label="Workouts">
+      <div class="hero">
+        <div class="hero-title">Workouts</div>
+        <div class="hero-sub">Templates auto-fill. Edit before saving.</div>
       </div>
 
-      <button id="addExercise">Add Exercise</button>
+      <div class="card">
+        <div class="form-grid">
+          <label class="field">
+            <span>Date</span>
+            <input id="workoutDate" type="date" />
+          </label>
 
-      <h2>Workout Log</h2>
-      <div id="workoutList" class="list"></div>
-    </section>
+          <label class="field">
+            <span>Workout Name</span>
+            <input id="workoutName" type="text" placeholder="e.g., Push Day" />
+          </label>
+        </div>
 
-    <!-- DASHBOARD -->
-    <section id="tab-dashboard" class="panel">
-      <h1>Dashboard</h1>
+        <div class="template-row">
+          <label class="field">
+            <span>Template</span>
+            <select id="workoutTemplate">
+              <option value="custom">Custom</option>
+              <option value="push">Push</option>
+              <option value="pull">Pull</option>
+              <option value="legs">Legs</option>
+            </select>
+          </label>
 
-      <div class="cards">
-        <div class="card">
-          <div class="cardTitle">Avg Weight (7d)</div>
-          <div id="avgWeight" class="big">--</div>
+          <button class="btn" id="btnApplyTemplate" type="button">Auto-fill</button>
         </div>
-        <div class="card">
-          <div class="cardTitle">Avg Calories (7d)</div>
-          <div id="avgCalories" class="big">--</div>
+
+        <div class="divider"></div>
+
+        <div class="card-head">
+          <div>
+            <div class="card-title">Exercises</div>
+            <div class="card-sub">Use + to add, or edit fields directly</div>
+          </div>
         </div>
-        <div class="card">
-          <div class="cardTitle">Workouts (7d)</div>
-          <div id="wkCount" class="big">--</div>
+
+        <div id="exerciseEditor" class="exercise-editor"></div>
+
+        <div class="btn-row">
+          <button class="btn" id="btnAddExercise" type="button">+ Add Exercise</button>
+          <button class="btn primary" id="btnSaveWorkout" type="button">Save Workout</button>
         </div>
+
+        <div class="btn-row">
+          <button class="btn ghost" id="btnClearWorkouts" type="button">Clear All</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="card-head">
+          <div>
+            <div class="card-title">History</div>
+            <div class="card-sub" id="workoutCount">0 workouts</div>
+          </div>
+        </div>
+
+        <div class="list" id="workoutList"></div>
       </div>
     </section>
   </main>
 
-  <!-- Charts -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Bottom Nav -->
+  <nav class="bottom-nav" aria-label="Navigation">
+    <button class="nav-btn active" data-go="dashboard" aria-label="Dashboard">
+      <div class="icon">📊</div><div class="txt">Dash</div>
+    </button>
+    <button class="nav-btn" data-go="weight" aria-label="Weight">
+      <div class="icon">🏋️</div><div class="txt">Weight</div>
+    </button>
+    <button class="nav-btn" data-go="macros" aria-label="Macros">
+      <div class="icon">🍽️</div><div class="txt">Macros</div>
+    </button>
+    <button class="nav-btn" data-go="workouts" aria-label="Workouts">
+      <div class="icon">🔥</div><div class="txt">Workouts</div>
+    </button>
+  </nav>
+
   <script src="app.js"></script>
 </body>
 </html>
