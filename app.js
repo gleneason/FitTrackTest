@@ -1,13 +1,10 @@
-/* Glen Track — vanilla JS, localStorage, lightweight SVG charts (no chart libs) */
+// -------------------- Storage Keys --------------------
+const KEY_WEIGHT = "glenTrack.weights.v1";
+const KEY_MACROS = "glenTrack.macros.v1";     // object keyed by date
+const KEY_WORKOUTS = "glenTrack.workouts.v1"; // array
 
-const STORAGE_KEY = "glenTrackData_v1";
-
+// -------------------- Helpers --------------------
 const $ = (id) => document.getElementById(id);
-
-function setStatus(msg) {
-  const pill = $("statusPill");
-  pill.textContent = msg;
-}
 
 function todayISO() {
   const d = new Date();
@@ -15,759 +12,538 @@ function todayISO() {
   return new Date(d - tzOff).toISOString().slice(0, 10);
 }
 
-function clamp(n, a, b) {
-  return Math.max(a, Math.min(b, n));
+function loadJSON(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
-function safeNum(v) {
+function saveJSON(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+function setStatus(text, ok = true) {
+  const pill = $("statusPill");
+  pill.textContent = text;
+  pill.style.color = ok ? "rgba(255,255,255,0.70)" : "rgba(255,255,255,0.92)";
+  pill.style.background = ok ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.14)";
+  pill.style.borderColor = ok ? "rgba(34,197,94,0.18)" : "rgba(239,68,68,0.22)";
+  clearTimeout(setStatus._t);
+  setStatus._t = setTimeout(() => {
+    pill.textContent = "Ready";
+    pill.style.color = "rgba(255,255,255,0.60)";
+    pill.style.background = "rgba(255,255,255,0.06)";
+    pill.style.borderColor = "rgba(255,255,255,0.08)";
+  }, 1200);
+}
+
+function fmtWeight(w) {
+  if (w === null || w === undefined || Number.isNaN(w)) return "—";
+  return `${Number(w).toFixed(1)} lbs`;
+}
+
+function parseNum(v) {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
 
-function loadData() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { weights: [], macros: [], workouts: [] };
-    const obj = JSON.parse(raw);
-    return {
-      weights: Array.isArray(obj.weights) ? obj.weights : [],
-      macros: Array.isArray(obj.macros) ? obj.macros : [],
-      workouts: Array.isArray(obj.workouts) ? obj.workouts : [],
-    };
-  } catch {
-    return { weights: [], macros: [], workouts: [] };
-  }
+function daysAgoISO(days) {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  const tzOff = d.getTimezoneOffset() * 60000;
+  return new Date(d - tzOff).toISOString().slice(0, 10);
 }
 
-function saveData(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-}
+// -------------------- Bottom Nav / Screens --------------------
+const screens = ["dashboard", "weight", "macros", "workouts"];
 
-function uid() {
-  // crypto.randomUUID is supported on modern iOS; fallback if needed.
-  if (crypto && crypto.randomUUID) return crypto.randomUUID();
-  return "id_" + Math.random().toString(16).slice(2) + "_" + Date.now();
-}
-
-function sortByDateAsc(list) {
-  return [...list].sort((a, b) => (a.date > b.date ? 1 : -1));
-}
-
-function lastNDaysSet(n) {
-  const s = new Set();
-  for (let i = 0; i < n; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const tzOff = d.getTimezoneOffset() * 60000;
-    s.add(new Date(d - tzOff).toISOString().slice(0, 10));
-  }
-  return s;
-}
-
-/* ---------- Lightweight SVG Charts ---------- */
-
-function svgEl(tag, attrs = {}) {
-  const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
-  Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, String(v)));
-  return el;
-}
-
-function renderLineChart(containerEl, series, opts = {}) {
-  // series: [{name, points:[{xLabel, y}], stroke, fill?}]
-  // opts: {height, yLabel?}
-  const W = containerEl.clientWidth || 600;
-  const H = opts.height || 170;
-  const P = 14; // padding
-  containerEl.innerHTML = "";
-
-  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", height: H, role: "img" });
-  const bg = svgEl("rect", { x: 0, y: 0, width: W, height: H, rx: 16, fill: "transparent" });
-  svg.appendChild(bg);
-
-  // Collect x labels union (in order)
-  const labels = [];
-  const labelSet = new Set();
-  series.forEach(s => {
-    s.points.forEach(p => {
-      if (!labelSet.has(p.xLabel)) {
-        labelSet.add(p.xLabel);
-        labels.push(p.xLabel);
-      }
-    });
+function showScreen(name) {
+  screens.forEach((s) => {
+    const el = $(`screen-${s}`);
+    el.classList.toggle("active", s === name);
   });
 
-  const allY = series.flatMap(s => s.points.map(p => p.y)).filter(Number.isFinite);
-  if (labels.length === 0 || allY.length === 0) {
-    const t = svgEl("text", { x: 16, y: 28, fill: "rgba(255,255,255,.55)", "font-size": 13 });
-    t.textContent = "No data yet";
-    svg.appendChild(t);
-    containerEl.appendChild(svg);
-    return;
-  }
-
-  let yMin = Math.min(...allY);
-  let yMax = Math.max(...allY);
-  if (yMin === yMax) { yMin -= 1; yMax += 1; }
-
-  const plotX0 = P, plotY0 = P, plotX1 = W - P, plotY1 = H - P - 18;
-
-  // Grid lines
-  const grid = svgEl("g", {});
-  const gridLines = 4;
-  for (let i = 0; i <= gridLines; i++) {
-    const y = plotY0 + (i / gridLines) * (plotY1 - plotY0);
-    grid.appendChild(svgEl("line", {
-      x1: plotX0, y1: y, x2: plotX1, y2: y,
-      stroke: "rgba(255,255,255,.08)",
-      "stroke-width": 1
-    }));
-  }
-  svg.appendChild(grid);
-
-  function xFor(idx) {
-    if (labels.length === 1) return (plotX0 + plotX1) / 2;
-    return plotX0 + (idx / (labels.length - 1)) * (plotX1 - plotX0);
-  }
-  function yFor(val) {
-    const t = (val - yMin) / (yMax - yMin);
-    return plotY1 - t * (plotY1 - plotY0);
-  }
-
-  // Render each series
-  series.forEach((s, si) => {
-    const pts = s.points
-      .map(p => ({ ...p, xi: labels.indexOf(p.xLabel) }))
-      .filter(p => p.xi >= 0 && Number.isFinite(p.y))
-      .sort((a, b) => a.xi - b.xi);
-
-    if (pts.length === 0) return;
-
-    let d = "";
-    pts.forEach((p, i) => {
-      const x = xFor(p.xi);
-      const y = yFor(p.y);
-      d += (i === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`);
-    });
-
-    const path = svgEl("path", {
-      d,
-      fill: "none",
-      stroke: s.stroke || "rgba(90,167,255,.95)",
-      "stroke-width": 2.6,
-      "stroke-linecap": "round",
-      "stroke-linejoin": "round"
-    });
-    svg.appendChild(path);
-
-    // dots
-    pts.forEach(p => {
-      const x = xFor(p.xi);
-      const y = yFor(p.y);
-      svg.appendChild(svgEl("circle", {
-        cx: x, cy: y, r: 3.4,
-        fill: s.stroke || "rgba(90,167,255,.95)",
-        stroke: "rgba(0,0,0,.25)",
-        "stroke-width": 1
-      }));
-    });
-
-    // Legend
-    const lx = 16 + si * 140;
-    const ly = H - 10;
-    const legend = svgEl("g", {});
-    legend.appendChild(svgEl("rect", { x: lx, y: ly - 10, width: 10, height: 4, rx: 2, fill: s.stroke || "rgba(90,167,255,.95)" }));
-    const lt = svgEl("text", { x: lx + 14, y: ly - 6, fill: "rgba(255,255,255,.65)", "font-size": 12 });
-    lt.textContent = s.name || "Series";
-    legend.appendChild(lt);
-    svg.appendChild(legend);
+  document.querySelectorAll(".tab").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.go === name);
   });
 
-  containerEl.appendChild(svg);
+  $("subTitle").textContent = name.charAt(0).toUpperCase() + name.slice(1);
+
+  // refresh visible screen data
+  if (name === "dashboard") renderDashboard();
+  if (name === "weight") renderWeights();
+  if (name === "macros") renderMacrosPreview();
+  if (name === "workouts") renderWorkouts();
 }
 
-/* ---------- Workout Templates ---------- */
-
-const WORKOUT_TEMPLATES = {
-  push: {
-    name: "Push",
-    exercises: [
-      { name: "Bench Press", sets: 4, reps: 8, weight: 0 },
-      { name: "Overhead Press", sets: 3, reps: 8, weight: 0 },
-      { name: "Incline DB Press", sets: 3, reps: 10, weight: 0 },
-      { name: "Triceps Pushdown", sets: 3, reps: 12, weight: 0 },
-    ],
-  },
-  pull: {
-    name: "Pull",
-    exercises: [
-      { name: "Lat Pulldown", sets: 4, reps: 10, weight: 0 },
-      { name: "Barbell Row", sets: 4, reps: 8, weight: 0 },
-      { name: "Face Pull", sets: 3, reps: 12, weight: 0 },
-      { name: "Biceps Curl", sets: 3, reps: 12, weight: 0 },
-    ],
-  },
-  legs: {
-    name: "Legs",
-    exercises: [
-      { name: "Squat", sets: 4, reps: 6, weight: 0 },
-      { name: "Romanian Deadlift", sets: 3, reps: 8, weight: 0 },
-      { name: "Leg Press", sets: 3, reps: 12, weight: 0 },
-      { name: "Calf Raise", sets: 4, reps: 12, weight: 0 },
-    ],
-  },
-};
-
-let draftWorkout = {
-  date: todayISO(),
-  name: "Workout",
-  template: "custom",
-  exercises: []
-};
-
-/* ---------- UI: Navigation ---------- */
-
-function go(page) {
-  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-  $("page-" + page).classList.add("active");
-
-  document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
-  document.querySelector(`.nav-btn[data-go="${page}"]`)?.classList.add("active");
-
-  setStatus("Ready");
+// -------------------- Weight --------------------
+function getWeights() {
+  return loadJSON(KEY_WEIGHT, []);
 }
 
-function setupNav() {
-  document.querySelectorAll(".nav-btn").forEach(btn => {
-    btn.addEventListener("click", () => go(btn.dataset.go));
-  });
+function setWeights(arr) {
+  // sort by date asc
+  arr.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  saveJSON(KEY_WEIGHT, arr);
 }
 
-/* ---------- WEIGHTS ---------- */
-
-function upsertWeight(date, weight) {
-  const data = loadData();
-  const idx = data.weights.findIndex(x => x.date === date);
-  if (idx >= 0) data.weights[idx] = { ...data.weights[idx], weight };
-  else data.weights.push({ id: uid(), date, weight });
-  saveData(data);
+function addWeight(date, value) {
+  const weights = getWeights();
+  // If date exists, replace it
+  const idx = weights.findIndex((x) => x.date === date);
+  const entry = { date, value: Number(value) };
+  if (idx >= 0) weights[idx] = entry;
+  else weights.push(entry);
+  setWeights(weights);
 }
 
-function deleteWeight(id) {
-  const data = loadData();
-  data.weights = data.weights.filter(w => w.id !== id);
-  saveData(data);
+function deleteWeight(date) {
+  const weights = getWeights().filter((x) => x.date !== date);
+  setWeights(weights);
 }
 
 function clearWeights() {
-  const data = loadData();
-  data.weights = [];
-  saveData(data);
+  saveJSON(KEY_WEIGHT, []);
 }
 
-function renderWeights() {
-  const data = loadData();
-  const list = sortByDateAsc(data.weights);
-  $("weightCount").textContent = `${list.length} entr${list.length === 1 ? "y" : "ies"}`;
+function exportWeights() {
+  const weights = getWeights();
+  const csv = ["date,weight_lbs"]
+    .concat(weights.map((w) => `${w.date},${w.value}`))
+    .join("\n");
 
-  const box = $("weightList");
-  box.innerHTML = "";
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "glen-track-weights.csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
-  if (list.length === 0) {
-    box.innerHTML = `<div class="item"><div class="left"><div class="item-title">No entries yet</div><div class="item-sub">Log a weight and you’ll see history here.</div></div></div>`;
-  } else {
-    const newestFirst = [...list].sort((a,b) => (a.date < b.date ? 1 : -1));
-    newestFirst.forEach(w => {
-      const el = document.createElement("div");
-      el.className = "item";
-      el.innerHTML = `
-        <div class="left">
-          <div class="item-title">${w.date}</div>
-          <div class="item-sub">${Number(w.weight).toFixed(1)} lbs</div>
-        </div>
-        <div class="item-actions">
-          <button class="small-btn danger" type="button">Delete</button>
-        </div>
-      `;
-      el.querySelector("button").addEventListener("click", () => {
-        if (!confirm("Delete this weight entry?")) return;
-        deleteWeight(w.id);
-        renderAll();
-        setStatus("Deleted ✅");
-      });
-      box.appendChild(el);
-    });
+// -------------------- Macros --------------------
+function getMacrosAll() {
+  return loadJSON(KEY_MACROS, {});
+}
+
+function setMacrosAll(obj) {
+  saveJSON(KEY_MACROS, obj);
+}
+
+function saveMacros(date, data) {
+  const all = getMacrosAll();
+  all[date] = data;
+  setMacrosAll(all);
+}
+
+function deleteMacros(date) {
+  const all = getMacrosAll();
+  delete all[date];
+  setMacrosAll(all);
+}
+
+// -------------------- Workouts --------------------
+function getWorkouts() {
+  return loadJSON(KEY_WORKOUTS, []);
+}
+
+function setWorkouts(arr) {
+  // latest first
+  arr.sort((a, b) => (a.date > b.date ? -1 : a.date < b.date ? 1 : 0));
+  saveJSON(KEY_WORKOUTS, arr);
+}
+
+function saveWorkout(date, text, template) {
+  const workouts = getWorkouts();
+
+  const idx = workouts.findIndex((w) => w.date === date);
+  const entry = {
+    date,
+    template,
+    text,
+    savedAt: new Date().toISOString(),
+  };
+
+  if (idx >= 0) workouts[idx] = entry;
+  else workouts.push(entry);
+
+  setWorkouts(workouts);
+}
+
+function deleteWorkout(date) {
+  setWorkouts(getWorkouts().filter((w) => w.date !== date));
+}
+
+const TEMPLATES = {
+  push: `PUSH (Chest / Shoulders / Triceps)
+1) Bench Press — 3x5–8
+2) Incline DB Press — 3x8–12
+3) Overhead Press — 3x6–10
+4) Lateral Raises — 3x12–20
+5) Triceps Pushdown — 3x10–15
+6) Optional: Dips — 2xAMRAP`,
+  pull: `PULL (Back / Biceps)
+1) Pull-Ups or Lat Pulldown — 3x6–12
+2) Barbell or DB Row — 3x6–10
+3) Seated Cable Row — 3x8–12
+4) Face Pulls — 3x12–20
+5) Bicep Curls — 3x10–15
+6) Optional: Hammer Curls — 2x10–15`,
+  legs: `LEGS (Quads / Hamstrings / Glutes / Calves)
+1) Squat or Leg Press — 3x5–10
+2) Romanian Deadlift — 3x6–10
+3) Walking Lunges — 3x10–12 (each)
+4) Leg Curl — 3x10–15
+5) Calf Raises — 4x10–20
+6) Optional: Core — 3 sets`,
+};
+
+// -------------------- Chart --------------------
+let weightChart;
+
+function rebuildWeightChart() {
+  const weights = getWeights();
+  const labels = weights.map((w) => w.date);
+  const data = weights.map((w) => w.value);
+
+  const ctx = $("weightChart").getContext("2d");
+
+  if (weightChart) {
+    weightChart.destroy();
   }
 
-  // Weight chart (all entries)
-  const points = sortByDateAsc(data.weights)
-    .map(w => ({ xLabel: w.date, y: Number(w.weight) }))
-    .filter(p => Number.isFinite(p.y));
-
-  renderLineChart($("weightChart"), [{
-    name: "Weight (lbs)",
-    points: points,
-    stroke: "rgba(90,167,255,.95)"
-  }], { height: 190 });
-
-  // Dashboard mini chart last 30
-  const last30 = points.slice(-30);
-  renderLineChart($("dashWeightChart"), [{
-    name: "Weight",
-    points: last30,
-    stroke: "rgba(90,167,255,.95)"
-  }], { height: 190 });
-}
-
-/* ---------- MACROS ---------- */
-
-function upsertMacros(date, macros) {
-  const data = loadData();
-  const idx = data.macros.findIndex(x => x.date === date);
-  const entry = { id: idx >= 0 ? data.macros[idx].id : uid(), date, ...macros };
-  if (idx >= 0) data.macros[idx] = entry;
-  else data.macros.push(entry);
-  saveData(data);
-}
-
-function deleteMacros(id) {
-  const data = loadData();
-  data.macros = data.macros.filter(m => m.id !== id);
-  saveData(data);
-}
-
-function clearMacros() {
-  const data = loadData();
-  data.macros = [];
-  saveData(data);
-}
-
-function renderMacros() {
-  const data = loadData();
-  const list = sortByDateAsc(data.macros);
-  $("macroCount").textContent = `${list.length} entr${list.length === 1 ? "y" : "ies"}`;
-
-  const box = $("macroList");
-  box.innerHTML = "";
-
-  if (list.length === 0) {
-    box.innerHTML = `<div class="item"><div class="left"><div class="item-title">No entries yet</div><div class="item-sub">Log calories + protein/carbs/fat.</div></div></div>`;
-  } else {
-    const newestFirst = [...list].sort((a,b) => (a.date < b.date ? 1 : -1));
-    newestFirst.forEach(m => {
-      const el = document.createElement("div");
-      el.className = "item";
-      el.innerHTML = `
-        <div class="left">
-          <div class="item-title">${m.date}</div>
-          <div class="item-sub">${m.calories} cal • P ${m.protein} • C ${m.carbs} • F ${m.fat}</div>
-        </div>
-        <div class="item-actions">
-          <button class="small-btn danger" type="button">Delete</button>
-        </div>
-      `;
-      el.querySelector("button").addEventListener("click", () => {
-        if (!confirm("Delete this macros entry?")) return;
-        deleteMacros(m.id);
-        renderAll();
-        setStatus("Deleted ✅");
-      });
-      box.appendChild(el);
-    });
-  }
-
-  // Macros chart (all): calories + protein
-  const pointsCal = sortByDateAsc(data.macros).map(m => ({ xLabel: m.date, y: Number(m.calories) })).filter(p => Number.isFinite(p.y));
-  const pointsPro = sortByDateAsc(data.macros).map(m => ({ xLabel: m.date, y: Number(m.protein) })).filter(p => Number.isFinite(p.y));
-
-  renderLineChart($("macroChart"), [
-    { name: "Calories", points: pointsCal, stroke: "rgba(123,240,201,.92)" },
-    { name: "Protein", points: pointsPro, stroke: "rgba(90,167,255,.92)" },
-  ], { height: 200 });
-
-  // Dashboard last 14 days
-  renderLineChart($("dashMacroChart"), [
-    { name: "Calories", points: pointsCal.slice(-14), stroke: "rgba(123,240,201,.92)" },
-    { name: "Protein", points: pointsPro.slice(-14), stroke: "rgba(90,167,255,.92)" },
-  ], { height: 210 });
-}
-
-/* ---------- WORKOUTS ---------- */
-
-function workoutVolume(workout) {
-  // sum(sets*reps*weight) for each exercise where weight is finite and > 0
-  let total = 0;
-  workout.exercises.forEach(ex => {
-    const sets = Number(ex.sets);
-    const reps = Number(ex.reps);
-    const wt = Number(ex.weight);
-    if (Number.isFinite(sets) && Number.isFinite(reps) && Number.isFinite(wt) && wt > 0) {
-      total += sets * reps * wt;
-    }
+  weightChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Weight (lbs)",
+          data,
+          tension: 0.35,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          borderWidth: 2,
+          fill: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: { color: "rgba(255,255,255,0.70)" },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: "rgba(255,255,255,0.55)" },
+          grid: { color: "rgba(255,255,255,0.06)" },
+        },
+        y: {
+          ticks: { color: "rgba(255,255,255,0.55)" },
+          grid: { color: "rgba(255,255,255,0.06)" },
+        },
+      },
+    },
   });
-  return total;
 }
 
-function saveWorkout(workout) {
-  const data = loadData();
-  data.workouts.push(workout);
-  saveData(data);
-}
+// -------------------- Renderers --------------------
+function renderWeights() {
+  const list = $("weightsList");
+  const weights = getWeights();
 
-function deleteWorkout(id) {
-  const data = loadData();
-  data.workouts = data.workouts.filter(w => w.id !== id);
-  saveData(data);
-}
+  list.innerHTML = "";
 
-function clearWorkouts() {
-  const data = loadData();
-  data.workouts = [];
-  saveData(data);
-}
-
-function renderWorkoutEditor() {
-  const box = $("exerciseEditor");
-  box.innerHTML = "";
-
-  if (!draftWorkout.exercises.length) {
-    box.innerHTML = `<div class="item"><div class="left"><div class="item-title">No exercises yet</div><div class="item-sub">Use Auto-fill or + Add Exercise.</div></div></div>`;
+  if (weights.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "item";
+    empty.innerHTML = `<div><div class="itemTitle">No weight entries yet</div><div class="itemSub">Add your first weight above.</div></div>`;
+    list.appendChild(empty);
     return;
   }
 
-  draftWorkout.exercises.forEach((ex, idx) => {
+  // newest first in list view
+  [...weights].sort((a,b)=> (a.date > b.date ? -1 : 1)).forEach((w) => {
     const row = document.createElement("div");
-    row.className = "ex-row";
-    row.innerHTML = `
-      <label class="field wide">
-        <span>Exercise</span>
-        <input class="xsmall" type="text" value="${escapeHtml(ex.name)}" data-k="name" data-i="${idx}">
-      </label>
+    row.className = "item";
 
-      <label class="field">
-        <span>Sets</span>
-        <input class="xsmall" type="number" inputmode="numeric" pattern="[0-9]*" value="${ex.sets ?? ""}" data-k="sets" data-i="${idx}">
-      </label>
-
-      <label class="field">
-        <span>Reps</span>
-        <input class="xsmall" type="number" inputmode="numeric" pattern="[0-9]*" value="${ex.reps ?? ""}" data-k="reps" data-i="${idx}">
-      </label>
-
-      <label class="field">
-        <span>Weight</span>
-        <input class="xsmall" type="number" inputmode="decimal" pattern="[0-9]*" step="0.5" value="${ex.weight ?? ""}" data-k="weight" data-i="${idx}">
-      </label>
-
-      <button class="small-btn danger remove" type="button" data-remove="${idx}">Remove</button>
+    const left = document.createElement("div");
+    left.innerHTML = `
+      <div class="itemTitle">${w.date}</div>
+      <div class="itemSub">${fmtWeight(w.value)}</div>
     `;
 
-    row.querySelectorAll("input").forEach(inp => {
-      inp.addEventListener("input", () => {
-        const i = Number(inp.dataset.i);
-        const k = inp.dataset.k;
-        if (k === "name") draftWorkout.exercises[i].name = inp.value;
-        else draftWorkout.exercises[i][k] = inp.value === "" ? "" : Number(inp.value);
-      });
-    });
+    const actions = document.createElement("div");
+    actions.className = "itemActions";
 
-    row.querySelector("button[data-remove]")?.addEventListener("click", () => {
-      draftWorkout.exercises.splice(idx, 1);
-      renderWorkoutEditor();
-      setStatus("Removed");
-    });
+    const del = document.createElement("button");
+    del.className = "btnMini danger";
+    del.textContent = "Delete";
+    del.onclick = () => {
+      deleteWeight(w.date);
+      setStatus("Deleted", true);
+      renderWeights();
+      renderDashboard();
+    };
 
-    box.appendChild(row);
+    actions.appendChild(del);
+    row.appendChild(left);
+    row.appendChild(actions);
+    list.appendChild(row);
   });
+}
+
+function renderMacrosPreview() {
+  const date = $("macroDate").value || todayISO();
+  const all = getMacrosAll();
+  const obj = all[date] || {};
+  $("macrosPreview").textContent = JSON.stringify(obj, null, 2);
 }
 
 function renderWorkouts() {
-  const data = loadData();
-  const list = [...data.workouts].sort((a,b) => (a.date < b.date ? 1 : -1));
-  $("workoutCount").textContent = `${list.length} workout${list.length === 1 ? "" : "s"}`;
+  const list = $("workoutsList");
+  const workouts = getWorkouts();
+  list.innerHTML = "";
 
-  const box = $("workoutList");
-  box.innerHTML = "";
-
-  if (!list.length) {
-    box.innerHTML = `<div class="item"><div class="left"><div class="item-title">No workouts yet</div><div class="item-sub">Save a workout to build a history.</div></div></div>`;
+  if (workouts.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "item";
+    empty.innerHTML = `<div><div class="itemTitle">No workouts yet</div><div class="itemSub">Pick a template and save your first session.</div></div>`;
+    list.appendChild(empty);
     return;
   }
 
-  list.forEach(w => {
-    const vol = workoutVolume(w);
-    const exCount = w.exercises?.length ?? 0;
+  workouts.forEach((w) => {
+    const row = document.createElement("div");
+    row.className = "item";
 
-    const el = document.createElement("div");
-    el.className = "item";
-    el.innerHTML = `
-      <div class="left">
-        <div class="item-title">${escapeHtml(w.date)} — ${escapeHtml(w.name || "Workout")}</div>
-        <div class="item-sub">${exCount} exercises • Volume: ${Math.round(vol).toLocaleString()}</div>
-      </div>
-      <div class="item-actions">
-        <button class="small-btn" type="button" data-view="${w.id}">View</button>
-        <button class="small-btn danger" type="button" data-del="${w.id}">Delete</button>
-      </div>
+    const left = document.createElement("div");
+    left.innerHTML = `
+      <div class="itemTitle">${w.date} • ${w.template ? w.template.toUpperCase() : "CUSTOM"}</div>
+      <div class="itemSub">${w.text || ""}</div>
     `;
 
-    el.querySelector("[data-del]")?.addEventListener("click", () => {
-      if (!confirm("Delete this workout?")) return;
-      deleteWorkout(w.id);
-      renderAll();
-      setStatus("Deleted ✅");
-    });
+    const actions = document.createElement("div");
+    actions.className = "itemActions";
 
-    el.querySelector("[data-view]")?.addEventListener("click", () => {
-      // Show a quick alert with details (simple, fast, mobile-friendly)
-      const lines = (w.exercises || []).map(ex => {
-        const s = ex.sets ?? "";
-        const r = ex.reps ?? "";
-        const wt = ex.weight ?? "";
-        return `• ${ex.name} — ${s}x${r} @ ${wt}`;
-      });
-      alert(`${w.date} — ${w.name}\n\n${lines.join("\n")}`);
-    });
+    const loadBtn = document.createElement("button");
+    loadBtn.className = "btnMini";
+    loadBtn.textContent = "Load";
+    loadBtn.onclick = () => {
+      $("workoutDate").value = w.date;
+      $("workoutText").value = w.text || "";
+      setStatus("Loaded", true);
+    };
 
-    box.appendChild(el);
+    const del = document.createElement("button");
+    del.className = "btnMini danger";
+    del.textContent = "Delete";
+    del.onclick = () => {
+      deleteWorkout(w.date);
+      setStatus("Deleted", true);
+      renderWorkouts();
+      renderDashboard();
+    };
+
+    actions.appendChild(loadBtn);
+    actions.appendChild(del);
+
+    row.appendChild(left);
+    row.appendChild(actions);
+    list.appendChild(row);
   });
-}
-
-/* ---------- DASHBOARD ---------- */
-
-function avg(nums) {
-  if (!nums.length) return null;
-  return nums.reduce((a,b) => a + b, 0) / nums.length;
 }
 
 function renderDashboard() {
-  const data = loadData();
-  const last7 = lastNDaysSet(7);
-
-  const weights7 = data.weights.filter(w => last7.has(w.date)).map(w => Number(w.weight)).filter(Number.isFinite);
-  const macros7 = data.macros.filter(m => last7.has(m.date));
-  const calories7 = macros7.map(m => Number(m.calories)).filter(Number.isFinite);
-  const protein7 = macros7.map(m => Number(m.protein)).filter(Number.isFinite);
-
-  const workouts7 = data.workouts.filter(w => last7.has(w.date));
-  const workoutCount = workouts7.length;
-  const volume7 = workouts7.reduce((sum, w) => sum + workoutVolume(w), 0);
+  const weights = getWeights();
+  const workouts = getWorkouts();
+  const macrosAll = getMacrosAll();
 
   // Latest weight
-  const weightsSorted = sortByDateAsc(data.weights);
-  if (weightsSorted.length) {
-    const latest = weightsSorted[weightsSorted.length - 1];
-    $("statLatestWeight").textContent = `${Number(latest.weight).toFixed(1)} lbs`;
-    $("statLatestWeightFoot").textContent = `Logged: ${latest.date}`;
+  if (weights.length === 0) {
+    $("dashLatestWeight").textContent = "—";
+    $("dashLatestWeightHint").textContent = "No entries yet";
   } else {
-    $("statLatestWeight").textContent = "—";
-    $("statLatestWeightFoot").textContent = "No weigh-ins yet";
+    const latest = [...weights].sort((a,b)=> (a.date > b.date ? -1 : 1))[0];
+    $("dashLatestWeight").textContent = fmtWeight(latest.value);
+    $("dashLatestWeightHint").textContent = latest.date;
   }
 
-  const aW = avg(weights7);
-  $("statAvgWeight").textContent = aW == null ? "—" : `${aW.toFixed(1)}`;
-
-  // Weight delta (start vs end in last 7, if available)
-  const weights7Sorted = sortByDateAsc(data.weights.filter(w => last7.has(w.date)));
-  if (weights7Sorted.length >= 2) {
-    const start = Number(weights7Sorted[0].weight);
-    const end = Number(weights7Sorted[weights7Sorted.length - 1].weight);
-    const delta = end - start;
-    const sign = delta > 0 ? "+" : "";
-    $("statWeightDelta").textContent = `Δ 7d: ${sign}${delta.toFixed(1)} lbs`;
+  // Macros today
+  const today = todayISO();
+  const m = macrosAll[today];
+  if (!m) {
+    $("dashMacros").textContent = "—";
+    $("dashMacrosHint").textContent = "No macros saved for today";
   } else {
-    $("statWeightDelta").textContent = "Δ 7d: —";
+    const cals = m.calories ?? "—";
+    const p = m.protein ?? "—";
+    const c = m.carbs ?? "—";
+    const f = m.fat ?? "—";
+    $("dashMacros").textContent = `${cals}`;
+    $("dashMacrosHint").textContent = `P ${p} • C ${c} • F ${f}`;
   }
 
-  const aC = avg(calories7);
-  $("statAvgCalories").textContent = aC == null ? "—" : `${Math.round(aC)}`;
-  const aP = avg(protein7);
-  $("statAvgProtein").textContent = aP == null ? "Avg Protein: —" : `Avg Protein: ${Math.round(aP)}g`;
+  // Workouts last 7 days
+  const cutoff = daysAgoISO(6); // inclusive range: today + 6 days back = 7 days
+  const w7 = workouts.filter((w) => w.date >= cutoff && w.date <= today);
+  $("dashWorkoutsWeek").textContent = `${w7.length}`;
 
-  $("statWorkoutCount").textContent = `${workoutCount}`;
-  $("statWorkoutVolume").textContent = workoutCount ? `7d Volume: ${Math.round(volume7).toLocaleString()}` : "7d Volume: —";
-}
-
-/* ---------- Utilities ---------- */
-
-function escapeHtml(str) {
-  return String(str ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-/* ---------- Wiring ---------- */
-
-function bindWeight() {
-  $("weightDate").value = todayISO();
-
-  $("btnSaveWeight").addEventListener("click", () => {
-    const date = $("weightDate").value || todayISO();
-    const weight = safeNum($("weightValue").value);
-    if (weight == null || weight <= 0) return setStatus("Enter a valid weight");
-    upsertWeight(date, Number(weight.toFixed(1)));
-    $("weightValue").value = "";
-    renderAll();
-    setStatus("Saved ✅");
-  });
-
-  $("btnClearWeights").addEventListener("click", () => {
-    if (!confirm("Clear ALL weight entries?")) return;
-    clearWeights();
-    renderAll();
-    setStatus("Cleared ✅");
-  });
-}
-
-function bindMacros() {
-  $("macroDate").value = todayISO();
-
-  $("btnSaveMacros").addEventListener("click", () => {
-    const date = $("macroDate").value || todayISO();
-
-    const calories = safeNum($("macroCalories").value);
-    const protein = safeNum($("macroProtein").value);
-    const carbs = safeNum($("macroCarbs").value);
-    const fat = safeNum($("macroFat").value);
-
-    // allow zeros, but require all fields present
-    if ([calories, protein, carbs, fat].some(v => v == null || v < 0)) {
-      return setStatus("Fill macros with valid numbers");
-    }
-
-    upsertMacros(date, {
-      calories: Math.round(calories),
-      protein: Math.round(protein),
-      carbs: Math.round(carbs),
-      fat: Math.round(fat),
-    });
-
-    $("macroCalories").value = "";
-    $("macroProtein").value = "";
-    $("macroCarbs").value = "";
-    $("macroFat").value = "";
-
-    renderAll();
-    setStatus("Saved ✅");
-  });
-
-  $("btnClearMacros").addEventListener("click", () => {
-    if (!confirm("Clear ALL macros entries?")) return;
-    clearMacros();
-    renderAll();
-    setStatus("Cleared ✅");
-  });
-}
-
-function bindWorkouts() {
-  $("workoutDate").value = todayISO();
-  $("workoutName").value = "Workout";
-  $("workoutTemplate").value = "custom";
-
-  function syncDraftFromHeader() {
-    draftWorkout.date = $("workoutDate").value || todayISO();
-    draftWorkout.name = ($("workoutName").value || "Workout").trim() || "Workout";
-    draftWorkout.template = $("workoutTemplate").value || "custom";
+  // 7-day weight average
+  const wts7 = weights.filter((w) => w.date >= cutoff && w.date <= today).map((w) => w.value);
+  if (wts7.length === 0) {
+    $("dashWeightAvg7").textContent = "—";
+  } else {
+    const avg = wts7.reduce((a,b)=>a+b,0) / wts7.length;
+    $("dashWeightAvg7").textContent = `${avg.toFixed(1)} lbs`;
   }
 
-  $("btnApplyTemplate").addEventListener("click", () => {
-    syncDraftFromHeader();
-    const key = draftWorkout.template;
-    if (key === "custom" || !WORKOUT_TEMPLATES[key]) {
-      return setStatus("Choose Push/Pull/Legs first");
-    }
-    const t = WORKOUT_TEMPLATES[key];
-    draftWorkout.name = t.name;
-    $("workoutName").value = t.name;
-    draftWorkout.exercises = t.exercises.map(ex => ({ ...ex }));
-    renderWorkoutEditor();
-    setStatus("Template loaded ✅");
-  });
-
-  $("btnAddExercise").addEventListener("click", () => {
-    draftWorkout.exercises.push({ name: "New Exercise", sets: 3, reps: 10, weight: 0 });
-    renderWorkoutEditor();
-    setStatus("Added");
-  });
-
-  $("btnSaveWorkout").addEventListener("click", () => {
-    syncDraftFromHeader();
-    if (!draftWorkout.exercises.length) return setStatus("Add exercises first");
-
-    // Validate: must have exercise names, sets/reps >=0
-    for (const ex of draftWorkout.exercises) {
-      if (!String(ex.name || "").trim()) return setStatus("Exercise name missing");
-      const s = safeNum(ex.sets); const r = safeNum(ex.reps); const w = safeNum(ex.weight);
-      if (s == null || s < 0 || r == null || r < 0 || w == null || w < 0) return setStatus("Fix exercise numbers");
-    }
-
-    const workout = {
-      id: uid(),
-      date: draftWorkout.date,
-      name: draftWorkout.name,
-      template: draftWorkout.template,
-      exercises: draftWorkout.exercises.map(ex => ({
-        name: String(ex.name).trim(),
-        sets: Number(ex.sets),
-        reps: Number(ex.reps),
-        weight: Number(ex.weight),
-      })),
-      createdAt: new Date().toISOString(),
-    };
-
-    saveWorkout(workout);
-
-    // Reset draft
-    draftWorkout = { date: todayISO(), name: "Workout", template: "custom", exercises: [] };
-    $("workoutDate").value = draftWorkout.date;
-    $("workoutName").value = draftWorkout.name;
-    $("workoutTemplate").value = draftWorkout.template;
-    renderWorkoutEditor();
-
-    renderAll();
-    setStatus("Workout saved ✅");
-  });
-
-  $("btnClearWorkouts").addEventListener("click", () => {
-    if (!confirm("Clear ALL workouts?")) return;
-    clearWorkouts();
-    renderAll();
-    setStatus("Cleared ✅");
-  });
-
-  renderWorkoutEditor();
+  // Chart
+  rebuildWeightChart();
 }
 
-function renderAll() {
-  renderWeights();
-  renderMacros();
-  renderWorkouts();
-  renderDashboard();
-}
-
-function setupPWA() {
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
-  }
-}
-
+// -------------------- Init / Events --------------------
 function init() {
   // Default dates
   $("weightDate").value = todayISO();
   $("macroDate").value = todayISO();
   $("workoutDate").value = todayISO();
 
-  setupNav();
-  bindWeight();
-  bindMacros();
-  bindWorkouts();
+  // Tabs
+  document.querySelectorAll(".tab").forEach((btn) => {
+    btn.addEventListener("click", () => showScreen(btn.dataset.go));
+  });
 
-  renderAll();
-  setupPWA();
+  // Weight events
+  $("btnAddWeight").addEventListener("click", () => {
+    const date = $("weightDate").value || todayISO();
+    const val = parseNum($("weightValue").value);
 
-  setStatus("Loaded ✅");
+    if (val === null) {
+      setStatus("Enter a weight", false);
+      return;
+    }
+    addWeight(date, val);
+    $("weightValue").value = "";
+    setStatus("Saved ✓", true);
+    renderWeights();
+    renderDashboard();
+  });
+
+  $("btnClearWeights").addEventListener("click", () => {
+    if (!confirm("Clear all weight entries?")) return;
+    clearWeights();
+    setStatus("Cleared", true);
+    renderWeights();
+    renderDashboard();
+  });
+
+  $("btnExportWeights").addEventListener("click", () => {
+    exportWeights();
+    setStatus("Exported", true);
+  });
+
+  // Macros events
+  $("btnSaveMacros").addEventListener("click", () => {
+    const date = $("macroDate").value || todayISO();
+    const data = {
+      calories: parseNum($("calories").value),
+      protein: parseNum($("protein").value),
+      carbs: parseNum($("carbs").value),
+      fat: parseNum($("fat").value),
+      savedAt: new Date().toISOString(),
+    };
+
+    // If user left everything blank, treat as invalid
+    const hasAny = ["calories","protein","carbs","fat"].some((k) => data[k] !== null);
+    if (!hasAny) {
+      setStatus("Enter macros", false);
+      return;
+    }
+
+    saveMacros(date, data);
+    setStatus("Saved ✓", true);
+    renderMacrosPreview();
+    renderDashboard();
+  });
+
+  $("btnClearMacros").addEventListener("click", () => {
+    const date = $("macroDate").value || todayISO();
+    if (!confirm(`Clear macros for ${date}?`)) return;
+    deleteMacros(date);
+    $("calories").value = "";
+    $("protein").value = "";
+    $("carbs").value = "";
+    $("fat").value = "";
+    setStatus("Cleared", true);
+    renderMacrosPreview();
+    renderDashboard();
+  });
+
+  $("macroDate").addEventListener("change", () => {
+    // load macros into inputs
+    const date = $("macroDate").value || todayISO();
+    const all = getMacrosAll();
+    const m = all[date] || {};
+    $("calories").value = m.calories ?? "";
+    $("protein").value = m.protein ?? "";
+    $("carbs").value = m.carbs ?? "";
+    $("fat").value = m.fat ?? "";
+    renderMacrosPreview();
+  });
+
+  // Workouts templates
+  document.querySelectorAll("[data-template]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const t = btn.dataset.template;
+      $("workoutText").value = TEMPLATES[t] || "";
+      setStatus(`${t.toUpperCase()} loaded`, true);
+      // remember last template choice on save only
+      $("workoutText").focus();
+    });
+  });
+
+  $("btnSaveWorkout").addEventListener("click", () => {
+    const date = $("workoutDate").value || todayISO();
+    const text = ($("workoutText").value || "").trim();
+    if (!text) {
+      setStatus("Enter workout", false);
+      return;
+    }
+
+    // detect which template it resembles (simple heuristic)
+    let template = "custom";
+    if (text.startsWith("PUSH")) template = "push";
+    if (text.startsWith("PULL")) template = "pull";
+    if (text.startsWith("LEGS")) template = "legs";
+
+    saveWorkout(date, text, template);
+    setStatus("Saved ✓", true);
+    renderWorkouts();
+    renderDashboard();
+  });
+
+  $("btnClearWorkout").addEventListener("click", () => {
+    $("workoutText").value = "";
+    setStatus("Cleared", true);
+  });
+
+  // Initial render
+  renderWeights();
+  renderMacrosPreview();
+  renderWorkouts();
+  renderDashboard();
+
+  // Start on dashboard
+  showScreen("dashboard");
 }
 
 document.addEventListener("DOMContentLoaded", init);
