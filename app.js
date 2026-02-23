@@ -1,36 +1,167 @@
-const KEY = "fittrack_smoke_test_v1";
-function $(id){ return document.getElementById(id); }
-function setStatus(msg){ const el = $("status"); if (el) el.textContent = msg; }
-function safeJsonParse(s){ try { return JSON.parse(s); } catch { return null; } }
+const STORAGE_KEY = "fittrack_weights_v1";
 
-document.addEventListener("DOMContentLoaded", () => {
-  setStatus("JS loaded ✅");
+const dateInput = document.getElementById("dateInput");
+const weightInput = document.getElementById("weightInput");
+const addBtn = document.getElementById("addBtn");
+const clearBtn = document.getElementById("clearBtn");
+const historyEl = document.getElementById("history");
+const statusEl = document.getElementById("status");
 
-  const input = $("testInput");
-  const out = $("out");
+let chart; // Chart.js instance
 
-  $("saveBtn").addEventListener("click", () => {
-    const v = (input.value || "").trim();
-    if (!v) { setStatus("Type something first"); return; }
+function setStatus(msg) {
+  statusEl.textContent = msg;
+}
 
-    const payload = { value: v, savedAt: new Date().toISOString() };
-    localStorage.setItem(KEY, JSON.stringify(payload));
-    setStatus("Saved ✅");
-    out.textContent = JSON.stringify(payload, null, 2);
+function todayISO() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function loadWeights() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return [];
+  try {
+    const data = JSON.parse(raw);
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveWeights(list) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+
+function sortByDateAsc(list) {
+  return [...list].sort((a, b) => (a.date > b.date ? 1 : -1));
+}
+
+function renderHistory(list) {
+  if (list.length === 0) {
+    historyEl.innerHTML = `<div class="item"><small>No entries yet.</small></div>`;
+    return;
+  }
+
+  // Newest first
+  const newestFirst = [...list].sort((a, b) => (a.date < b.date ? 1 : -1));
+
+  historyEl.innerHTML = newestFirst
+    .map((e, idx) => {
+      const w = Number(e.weight).toFixed(1);
+      return `
+        <div class="item">
+          <div>
+            <div><strong>${e.date}</strong></div>
+            <small>${w} lbs</small>
+          </div>
+          <button class="del" data-date="${e.date}" data-weight="${e.weight}">Delete</button>
+        </div>
+      `;
+    })
+    .join("");
+
+  // Hook up delete buttons
+  historyEl.querySelectorAll(".del").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const date = btn.getAttribute("data-date");
+      const weight = btn.getAttribute("data-weight");
+      deleteEntry(date, weight);
+    });
   });
+}
 
-  $("loadBtn").addEventListener("click", () => {
-    const raw = localStorage.getItem(KEY);
-    const payload = raw ? safeJsonParse(raw) : null;
-    if (!payload) { setStatus("Nothing saved yet"); out.textContent = ""; return; }
-    setStatus("Loaded ✅");
-    out.textContent = JSON.stringify(payload, null, 2);
-  });
+function renderChart(list) {
+  const sorted = sortByDateAsc(list);
 
-  $("clearBtn").addEventListener("click", () => {
-    localStorage.removeItem(KEY);
-    setStatus("Cleared ✅");
-    out.textContent = "";
-    input.value = "";
+  const labels = sorted.map((e) => e.date);
+  const data = sorted.map((e) => Number(e.weight));
+
+  const ctx = document.getElementById("weightChart").getContext("2d");
+
+  if (chart) chart.destroy();
+
+  chart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Weight (lbs)",
+          data,
+          tension: 0.25
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: true }
+      },
+      scales: {
+        x: { ticks: { maxRotation: 0 } }
+      }
+    }
   });
-});
+}
+
+function addEntry() {
+  const date = dateInput.value || todayISO();
+  const weight = weightInput.value;
+
+  if (!weight) {
+    setStatus("Enter a weight first.");
+    return;
+  }
+
+  const num = Number(weight);
+  if (!Number.isFinite(num) || num <= 0) {
+    setStatus("Weight must be a positive number.");
+    return;
+  }
+
+  const list = loadWeights();
+  list.push({ date, weight: num });
+
+  saveWeights(list);
+  weightInput.value = "";
+
+  setStatus("Saved ✅");
+  refreshUI();
+}
+
+function deleteEntry(date, weight) {
+  const list = loadWeights();
+  const w = Number(weight);
+
+  // Remove only ONE matching entry (date + weight)
+  const idx = list.findIndex((e) => e.date === date && Number(e.weight) === w);
+  if (idx >= 0) list.splice(idx, 1);
+
+  saveWeights(list);
+  setStatus("Deleted");
+  refreshUI();
+}
+
+function clearAll() {
+  localStorage.removeItem(STORAGE_KEY);
+  setStatus("Cleared");
+  refreshUI();
+}
+
+function refreshUI() {
+  const list = loadWeights();
+  renderHistory(list);
+  renderChart(list);
+}
+
+// Init
+dateInput.value = todayISO();
+addBtn.addEventListener("click", addEntry);
+clearBtn.addEventListener("click", clearAll);
+
+refreshUI();
+setStatus("Ready");
