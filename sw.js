@@ -1,5 +1,4 @@
-// Simple offline cache for Glen Track (PWA)
-const CACHE = "glen-track-cache-v1";
+const CACHE = "glen-track-v1";
 const ASSETS = [
   "./",
   "./index.html",
@@ -10,21 +9,31 @@ const ASSETS = [
   "./icon-512.png"
 ];
 
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())
-  );
+self.addEventListener("install", (evt) => {
+  evt.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    await cache.addAll(ASSETS);
+    self.skipWaiting();
+  })());
 });
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.map(k => (k !== CACHE ? caches.delete(k) : null))))
-      .then(() => self.clients.claim())
-  );
+self.addEventListener("activate", (evt) => {
+  evt.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k => (k === CACHE ? null : caches.delete(k))));
+    self.clients.claim();
+  })());
 });
 
-self.addEventListener("fetch", (event) => {
-  event.respondWith(
-    caches.match(event.request).then((hit) => hit || fetch(event.request))
-  );
+self.addEventListener("fetch", (evt) => {
+  evt.respondWith((async () => {
+    const cached = await caches.match(evt.request);
+    if (cached) return cached;
+    try {
+      const res = await fetch(evt.request);
+      return res;
+    } catch {
+      return caches.match("./index.html");
+    }
+  })());
 });
