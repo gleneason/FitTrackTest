@@ -1,4 +1,4 @@
-const CACHE = "fittrack-cache-v1";
+const CACHE_NAME = "glen-track-v1";
 const ASSETS = [
   "./",
   "./index.html",
@@ -7,12 +7,14 @@ const ASSETS = [
   "./manifest.webmanifest"
 ];
 
-self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+  );
 });
 
-self.addEventListener("fetch", (e) => {
-  e.respondWith(
-    caches.match(e.request).then((cached) => cached || fetch(e.request))
+self.addEventListener("fetch", (event) => {
+  event.respondWith(
+    caches.match(event.request).then((cached) => cached || fetch(event.request))
   );
 });
