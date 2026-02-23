@@ -1,37 +1,50 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FitTrack</title>
+  <link rel="stylesheet" href="styles.css" />
 
-  <!-- MUST match the file name exactly: styles.css -->
-  <link rel="stylesheet" href="./styles.css" />
+  <!-- Chart.js for the weight chart -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <header class="topbar">
-    <h1>⚡ FitTrack</h1>
+    <div class="brand">⚡ FitTrack</div>
     <div id="status" class="status">Ready</div>
   </header>
 
   <main class="container">
     <section class="card">
-      <h2>Quick Test</h2>
-      <p>This is just to prove Save + localStorage works.</p>
+      <h2>Weight Log</h2>
 
-      <label for="testInput">Type something</label>
-      <input id="testInput" type="text" placeholder="e.g., 195" />
+      <div class="row">
+        <label class="field">
+          <span>Date</span>
+          <input id="dateInput" type="date" />
+        </label>
 
-      <button id="saveBtn" type="button">Save</button>
-      <button id="loadBtn" type="button">Load</button>
-      <button id="clearBtn" type="button">Clear</button>
+        <label class="field">
+          <span>Weight (lbs)</span>
+          <input id="weightInput" type="number" inputmode="decimal" step="0.1" placeholder="e.g., 195.0" />
+        </label>
 
-      <pre id="out" class="out"></pre>
+        <button id="addBtn" class="btn primary">Add</button>
+      </div>
+
+      <div class="row">
+        <button id="clearBtn" class="btn">Clear All</button>
+      </div>
+
+      <h3>History</h3>
+      <div id="history" class="history"></div>
+
+      <h3>Chart</h3>
+      <canvas id="weightChart" height="120"></canvas>
     </section>
   </main>
 
-  <!-- MUST match file name exactly: app.js -->
-  <!-- defer ensures JS runs after HTML exists -->
-  <script src="./app.js" defer></script>
+  <script src="app.js"></script>
 </body>
 </html>
