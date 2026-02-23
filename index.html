@@ -1,404 +1,438 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#0b1220" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0B1220" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Glen Track" />
-  <link rel="apple-touch-icon" href="./icon-192.png" />
+
   <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
+  <link rel="icon" href="./icon-192.png" />
 
   <title>Glen Track</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
+
 <body>
   <div class="app" id="app">
     <header class="topbar">
       <div class="brand">
-        <div class="logoDot" aria-hidden="true"></div>
+        <div class="logo">G</div>
         <div class="brandText">
           <div class="brandName">Glen Track</div>
-          <div class="brandSub" id="weekLabel">Week of —</div>
+          <div class="brandSub" id="brandSub">Private. Simple. Consistent.</div>
         </div>
       </div>
 
-      <div class="weekControls" role="group" aria-label="Week controls">
-        <button class="btn btnGhost" id="prevWeekBtn" type="button" aria-label="Previous week">‹</button>
-        <button class="btn btnGhost" id="todayWeekBtn" type="button">This Week</button>
-        <button class="btn btnGhost" id="nextWeekBtn" type="button" aria-label="Next week">›</button>
+      <div class="topActions">
+        <button class="chip" id="quickAddBtn" type="button">Quick Add</button>
+        <button class="iconBtn" id="exportBtn" type="button" aria-label="Export data">⤓</button>
+        <button class="iconBtn" id="importBtn" type="button" aria-label="Import data">⤒</button>
       </div>
     </header>
 
-    <main class="main" id="main">
+    <main class="content">
       <!-- DASHBOARD -->
-      <section class="page" id="page-dashboard" data-page="dashboard" aria-label="Dashboard">
-        <div class="cardGrid">
-          <div class="card">
-            <div class="cardTitle">Trend Weight</div>
-            <div class="metricRow">
-              <div>
-                <div class="metricValue" id="dashTrendWeight">—</div>
-                <div class="metricSub" id="dashTrendDelta">—</div>
-              </div>
-              <div class="pill" id="dashOnTrack">—</div>
+      <section class="screen active" id="screen-dashboard" aria-label="Dashboard">
+        <div class="weekBar card">
+          <button class="iconBtn" id="weekPrevBtn" type="button" aria-label="Previous week">‹</button>
+          <div class="weekInfo">
+            <div class="weekTitle" id="weekTitle">Week</div>
+            <div class="weekRange" id="weekRange">—</div>
+          </div>
+          <button class="iconBtn" id="weekNextBtn" type="button" aria-label="Next week">›</button>
+        </div>
+
+        <div class="card">
+          <div class="cardHeader">
+            <h2>Weekly Dashboard</h2>
+            <span class="badge" id="streakBadge">Streak: 0</span>
+          </div>
+
+          <div class="grid2 mt12">
+            <div class="mini">
+              <div class="miniLabel">Avg weight</div>
+              <div class="miniValue" id="dashAvgWeight">—</div>
+              <div class="miniHint" id="dashWeightDelta">—</div>
+            </div>
+            <div class="mini">
+              <div class="miniLabel">Workouts</div>
+              <div class="miniValue" id="dashWorkoutCount">0</div>
+              <div class="miniHint" id="dashWorkoutGoal">Goal: —</div>
             </div>
           </div>
 
-          <div class="card">
-            <div class="cardTitle">Consistency</div>
-            <div class="metricRow">
-              <div>
-                <div class="metricValue" id="dashConsistency">—</div>
-                <div class="metricSub">weekly score (max 21)</div>
-              </div>
-              <div class="pill" id="dashStreakPill">🔥 —</div>
+          <div class="grid2 mt12">
+            <div class="mini">
+              <div class="miniLabel">Avg calories</div>
+              <div class="miniValue" id="dashAvgCalories">—</div>
+              <div class="miniHint" id="dashCalTarget">Target: —</div>
             </div>
-          </div>
-
-          <div class="card">
-            <div class="cardTitle">Workouts</div>
-            <div class="metricRow">
-              <div>
-                <div class="metricValue" id="dashWorkoutCount">—</div>
-                <div class="metricSub" id="dashNextWorkout">Next: —</div>
-              </div>
-              <div class="pill" id="dashWorkoutGoalPill">—</div>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="cardTitle">Macros Avg</div>
-            <div class="metricRow">
-              <div>
-                <div class="metricValue" id="dashAvgCalories">—</div>
-                <div class="metricSub" id="dashAvgProtein">—</div>
-              </div>
-              <div class="pill" id="dashMacroPill">—</div>
+            <div class="mini">
+              <div class="miniLabel">Avg protein</div>
+              <div class="miniValue" id="dashAvgProtein">—</div>
+              <div class="miniHint" id="dashProteinGoal">Goal: —</div>
             </div>
           </div>
         </div>
 
         <div class="card">
-          <div class="cardTitle">Quick Add</div>
-          <div class="quickRow">
-            <button class="btn btnPrimary" id="quickAddWeightBtn" type="button">+ Weight</button>
-            <button class="btn btnPrimary" id="quickAddMacrosBtn" type="button">+ Macros</button>
-            <button class="btn btnPrimary" id="quickAddWorkoutBtn" type="button">+ Workout</button>
-          </div>
-          <div class="toggleRow">
-            <label class="toggle">
-              <input type="checkbox" id="uberToggle" />
-              <span class="toggleUI"></span>
-              <span class="toggleText">
-                Uber Night Mode
-                <span class="mutedSmall">Adds guardrails + calorie targets shift</span>
-              </span>
-            </label>
-          </div>
-
-          <div class="notice" id="uberNotice" hidden>
-            <div class="noticeTitle">Uber night guardrails</div>
-            <ul class="noticeList">
-              <li>Pre-Uber protein reminder (40g minimum)</li>
-              <li>One planned Taco Bell order (no box) + kitchen-close ritual</li>
-              <li>Yellow-zone focus (no “screw it” spiral)</li>
-            </ul>
-          </div>
+          <h3>Weight trend</h3>
+          <div class="chartWrap" id="weightWeekChart"></div>
+          <div class="subtle mt8">Logs this week only (Mon–Sun).</div>
         </div>
 
         <div class="card">
-          <div class="cardTitle">Charts</div>
-
-          <div class="chartBlock">
-            <div class="chartHeader">
-              <div class="chartName">Weight (daily + 7-day trend)</div>
-              <div class="mutedSmall">Mon–Sun</div>
-            </div>
-            <div class="chartWrap" id="weightChart"></div>
-          </div>
-
-          <div class="chartBlock">
-            <div class="chartHeader">
-              <div class="chartName">Macros (calories + protein)</div>
-              <div class="mutedSmall">weekly bars</div>
-            </div>
-            <div class="chartWrap" id="macroChart"></div>
-          </div>
+          <h3>Macros trend</h3>
+          <div class="chartWrap" id="macroWeekChart"></div>
+          <div class="subtle mt8">Protein + calories across the week.</div>
         </div>
 
         <div class="card">
-          <div class="cardTitle">Weekly Reflection</div>
-          <div class="mutedSmall">A quick Sunday-style reset—any day you want.</div>
-          <div class="formGrid">
-            <div class="field">
-              <label for="reflectEnergy">Energy (1–5)</label>
-              <input id="reflectEnergy" type="number" inputmode="numeric" min="1" max="5" placeholder="1–5" />
+          <h3>Goal progress</h3>
+          <div class="progressGrid mt12">
+            <div class="progressItem">
+              <div class="progressTop">
+                <span>Workouts</span><span id="progWorkoutsText">—</span>
+              </div>
+              <div class="progressBar"><div class="progressFill" id="progWorkoutsFill"></div></div>
             </div>
-            <div class="field">
-              <label for="reflectStress">Stress (1–5)</label>
-              <input id="reflectStress" type="number" inputmode="numeric" min="1" max="5" placeholder="1–5" />
+            <div class="progressItem">
+              <div class="progressTop">
+                <span>Protein days</span><span id="progProteinText">—</span>
+              </div>
+              <div class="progressBar"><div class="progressFill" id="progProteinFill"></div></div>
+            </div>
+            <div class="progressItem">
+              <div class="progressTop">
+                <span>Calorie target days</span><span id="progCalText">—</span>
+              </div>
+              <div class="progressBar"><div class="progressFill" id="progCalFill"></div></div>
             </div>
           </div>
-          <button class="btn btnPrimary" id="saveReflectionBtn" type="button">Save Reflection</button>
-          <div class="mutedSmall" id="reflectionHint">—</div>
         </div>
       </section>
 
       <!-- WEIGHT -->
-      <section class="page" id="page-weight" data-page="weight" hidden aria-label="Weight Log">
+      <section class="screen" id="screen-weight" aria-label="Weight log">
         <div class="card">
-          <div class="cardTitle">Add Weight</div>
-          <form id="weightForm" class="form">
-            <div class="formGrid">
-              <div class="field">
-                <label for="weightDate">Date</label>
-                <input id="weightDate" type="date" required />
-              </div>
-              <div class="field">
-                <label for="weightValue">Weight (lbs)</label>
-                <input id="weightValue" type="number" inputmode="decimal" step="0.1" min="0" placeholder="e.g. 195.0" required />
-              </div>
+          <h2>Weight</h2>
+          <div class="grid2 mt12">
+            <div>
+              <label for="weightDate">Date</label>
+              <input id="weightDate" type="date" />
             </div>
-            <div class="field">
-              <label for="weightNote">Note (optional)</label>
-              <input id="weightNote" type="text" maxlength="120" placeholder="Sleep, sodium, stress, etc." />
+            <div>
+              <label for="weightLbs">Weight (lbs)</label>
+              <input id="weightLbs" type="number" inputmode="decimal" step="0.1" placeholder="195.0" />
             </div>
-            <button class="btn btnPrimary" type="submit">Save Weight</button>
-          </form>
-        </div>
-
-        <div class="card">
-          <div class="cardTitle">This Week</div>
-          <div class="mutedSmall" id="weightWeekStats">—</div>
-          <div class="list" id="weightList" aria-label="Weight entries"></div>
-        </div>
-      </section>
-
-      <!-- WORKOUTS -->
-      <section class="page" id="page-workouts" data-page="workouts" hidden aria-label="Workout Log">
-        <div class="card">
-          <div class="cardTitle">Workout Templates</div>
-          <div class="templateRow">
-            <button class="btn btnGhost" id="tplFullA" type="button">Full Body A</button>
-            <button class="btn btnGhost" id="tplFullB" type="button">Full Body B</button>
-            <button class="btn btnGhost" id="tplExpress" type="button">Express (30m)</button>
           </div>
-          <div class="mutedSmall" id="templateHint">Tap to auto-fill a new workout.</div>
+          <div class="mt12">
+            <label for="weightNote">Note (optional)</label>
+            <input id="weightNote" type="text" placeholder="e.g., slept 6 hrs / salty dinner" />
+          </div>
+          <div class="row mt12">
+            <button class="btn primary" id="saveWeightBtn" type="button">Save</button>
+            <button class="btn" id="clearWeightWeekBtn" type="button">Clear week</button>
+          </div>
         </div>
 
         <div class="card">
-          <div class="cardTitle">Add Workout</div>
-          <form id="workoutForm" class="form">
-            <div class="formGrid">
-              <div class="field">
-                <label for="workoutDate">Date</label>
-                <input id="workoutDate" type="date" required />
-              </div>
-              <div class="field">
-                <label for="workoutName">Workout Name</label>
-                <input id="workoutName" type="text" maxlength="50" placeholder="Full Body A" required />
-              </div>
-            </div>
-
-            <div class="field">
-              <label for="workoutNotes">Workout Notes (optional)</label>
-              <input id="workoutNotes" type="text" maxlength="140" placeholder="How it felt, time cap, etc." />
-            </div>
-
-            <div class="divider"></div>
-
-            <div class="rowBetween">
-              <div class="subTitle">Exercises</div>
-              <button class="btn btnGhost" id="addExerciseBtn" type="button">+ Add Exercise</button>
-            </div>
-
-            <div id="exerciseEditor" class="stack"></div>
-
-            <div class="divider"></div>
-
-            <div class="rowBetween">
-              <div class="mutedSmall" id="workoutVolumeHint">Volume: —</div>
-              <button class="btn btnPrimary" type="submit">Save Workout</button>
-            </div>
-          </form>
+          <h3>This week</h3>
+          <div class="list" id="weightList"></div>
         </div>
 
         <div class="card">
-          <div class="cardTitle">This Week Workouts</div>
-          <div class="list" id="workoutList" aria-label="Workouts list"></div>
+          <h3>Chart</h3>
+          <div class="chartWrap" id="weightAllChart"></div>
         </div>
       </section>
 
       <!-- MACROS -->
-      <section class="page" id="page-macros" data-page="macros" hidden aria-label="Macros Log">
+      <section class="screen" id="screen-macros" aria-label="Macros log">
         <div class="card">
-          <div class="cardTitle">Meal Templates (One-tap add)</div>
-          <div class="rowBetween">
-            <div class="mutedSmall">Tap a meal to add it to the selected date.</div>
-            <button class="btn btnGhost" id="newMealTplBtn" type="button">+ New</button>
-          </div>
-          <div class="chips" id="mealTplChips" aria-label="Meal templates"></div>
-        </div>
-
-        <div class="card">
-          <div class="cardTitle">Add Daily Macros</div>
-          <form id="macrosForm" class="form">
-            <div class="formGrid">
-              <div class="field">
-                <label for="macrosDate">Date</label>
-                <input id="macrosDate" type="date" required />
-              </div>
-              <div class="field">
-                <label for="macrosCalories">Calories</label>
-                <input id="macrosCalories" type="number" inputmode="numeric" min="0" placeholder="e.g. 2200" required />
-              </div>
-              <div class="field">
-                <label for="macrosProtein">Protein (g)</label>
-                <input id="macrosProtein" type="number" inputmode="numeric" min="0" placeholder="e.g. 175" required />
-              </div>
-              <div class="field">
-                <label for="macrosCarbs">Carbs (g)</label>
-                <input id="macrosCarbs" type="number" inputmode="numeric" min="0" placeholder="e.g. 220" required />
-              </div>
-              <div class="field">
-                <label for="macrosFat">Fat (g)</label>
-                <input id="macrosFat" type="number" inputmode="numeric" min="0" placeholder="e.g. 70" required />
-              </div>
+          <h2>Macros</h2>
+          <div class="grid2 mt12">
+            <div>
+              <label for="macroDate">Date</label>
+              <input id="macroDate" type="date" />
             </div>
-
-            <div class="toggleRow">
-              <label class="toggle">
-                <input type="checkbox" id="proteinAnchorsToggle" />
-                <span class="toggleUI"></span>
-                <span class="toggleText">
-                  Protein Anchors hit today (B/L/D)
-                  <span class="mutedSmall">Sustainability > perfection</span>
-                </span>
-              </label>
+            <div>
+              <label for="macroCalories">Calories</label>
+              <input id="macroCalories" type="number" inputmode="numeric" placeholder="2200" />
             </div>
-
-            <button class="btn btnPrimary" type="submit">Save Macros</button>
-          </form>
-        </div>
-
-        <div class="card">
-          <div class="cardTitle">This Week Macros</div>
-          <div class="mutedSmall" id="macroWeekStats">—</div>
-          <div class="list" id="macrosList" aria-label="Macros entries"></div>
-        </div>
-
-        <div class="card">
-          <div class="cardTitle">Grocery List (from meal templates)</div>
-          <div class="mutedSmall">Pick templates you’ll eat this week. This is meant to be repeatable.</div>
-          <div id="groceryPicker" class="stack"></div>
-          <button class="btn btnPrimary" id="generateGroceryBtn" type="button">Generate Grocery List</button>
-          <div class="divider"></div>
-          <div id="groceryOutput" class="groceryOut" aria-label="Grocery list output"></div>
-          <div class="rowBetween">
-            <button class="btn btnGhost" id="copyGroceryBtn" type="button">Copy</button>
-            <button class="btn btnGhost" id="clearGroceryBtn" type="button">Clear</button>
           </div>
+
+          <div class="grid2 mt12">
+            <div>
+              <label for="macroProtein">Protein (g)</label>
+              <input id="macroProtein" type="number" inputmode="numeric" placeholder="180" />
+            </div>
+            <div>
+              <label for="macroCarbs">Carbs (g)</label>
+              <input id="macroCarbs" type="number" inputmode="numeric" placeholder="200" />
+            </div>
+          </div>
+
+          <div class="grid2 mt12">
+            <div>
+              <label for="macroFat">Fat (g)</label>
+              <input id="macroFat" type="number" inputmode="numeric" placeholder="70" />
+            </div>
+            <div>
+              <label for="macroFiber">Fiber (g) (optional)</label>
+              <input id="macroFiber" type="number" inputmode="numeric" placeholder="25" />
+            </div>
+          </div>
+
+          <div class="row mt12">
+            <button class="btn primary" id="saveMacrosBtn" type="button">Save</button>
+            <button class="btn" id="clearMacrosWeekBtn" type="button">Clear week</button>
+          </div>
+
+          <div class="divider mt12"></div>
+          <div class="row">
+            <div class="pill">
+              <div class="pillTop">Today target</div>
+              <div class="pillVal" id="todayCalTarget">—</div>
+            </div>
+            <div class="pill">
+              <div class="pillTop">Protein goal</div>
+              <div class="pillVal" id="todayProteinGoal">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>This week</h3>
+          <div class="list" id="macroList"></div>
+        </div>
+
+        <div class="card">
+          <h3>Chart</h3>
+          <div class="chartWrap" id="macroAllChart"></div>
+        </div>
+      </section>
+
+      <!-- WORKOUTS -->
+      <section class="screen" id="screen-workouts" aria-label="Workout log">
+        <div class="card">
+          <h2>Workouts</h2>
+
+          <div class="row mt12">
+            <button class="btn" id="tplFullBtn" type="button">Full Body</button>
+            <button class="btn" id="tplPushBtn" type="button">Push</button>
+            <button class="btn" id="tplPullBtn" type="button">Pull</button>
+            <button class="btn" id="tplLegsBtn" type="button">Legs</button>
+          </div>
+
+          <div class="grid2 mt12">
+            <div>
+              <label for="workoutDate">Date</label>
+              <input id="workoutDate" type="date" />
+            </div>
+            <div>
+              <label for="workoutName">Workout name</label>
+              <input id="workoutName" type="text" placeholder="e.g., Full Body A" />
+            </div>
+          </div>
+
+          <div class="grid2 mt12">
+            <div>
+              <label for="cardioType">Cardio</label>
+              <select id="cardioType">
+                <option value="">None</option>
+                <option value="run">Run</option>
+                <option value="bike">Stationary bike</option>
+                <option value="walk">Incline walk</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label for="cardioMins">Cardio minutes</label>
+              <input id="cardioMins" type="number" inputmode="numeric" placeholder="20" />
+            </div>
+          </div>
+
+          <div class="mt12">
+            <label>Exercises</label>
+            <div id="exerciseList" class="exerciseList"></div>
+            <button class="btn ghost mt10" id="addExerciseBtn" type="button">+ Add exercise</button>
+          </div>
+
+          <div class="row mt12">
+            <button class="btn primary" id="saveWorkoutBtn" type="button">Save workout</button>
+            <button class="btn" id="clearWorkoutsWeekBtn" type="button">Clear week</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>This week</h3>
+          <div class="list" id="workoutList"></div>
+        </div>
+      </section>
+
+      <!-- MEALS -->
+      <section class="screen" id="screen-meals" aria-label="Meals">
+        <div class="card">
+          <h2>Meals</h2>
+          <div class="subtle">Use templates → one tap add → grocery list generated from what you actually used.</div>
+
+          <div class="row mt12">
+            <button class="btn" id="seedMealsBtn" type="button">Add starter templates</button>
+            <button class="btn" id="genGroceryBtn" type="button">Generate grocery list</button>
+          </div>
+
+          <div class="grid2 mt12">
+            <div>
+              <label for="mealDate">Date</label>
+              <input id="mealDate" type="date" />
+            </div>
+            <div>
+              <label for="mealTemplateSelect">Quick add meal</label>
+              <select id="mealTemplateSelect"></select>
+            </div>
+          </div>
+
+          <div class="row mt12">
+            <button class="btn primary" id="addMealBtn" type="button">Add meal</button>
+            <button class="btn" id="clearMealsWeekBtn" type="button">Clear week</button>
+          </div>
+
+          <div class="divider mt12"></div>
+          <h3>Today’s meals</h3>
+          <div class="list mt12" id="mealsTodayList"></div>
+        </div>
+
+        <div class="card">
+          <h3>Meal templates</h3>
+          <div class="list" id="mealTemplatesList"></div>
+        </div>
+
+        <div class="card">
+          <h3>Grocery list</h3>
+          <pre class="grocery" id="groceryOut">Nothing yet.</pre>
         </div>
       </section>
 
       <!-- SETTINGS -->
-      <section class="page" id="page-settings" data-page="settings" hidden aria-label="Settings">
+      <section class="screen" id="screen-settings" aria-label="Settings">
         <div class="card">
-          <div class="cardTitle">Goals</div>
-          <form id="goalsForm" class="form">
-            <div class="formGrid">
-              <div class="field">
-                <label for="goalCaloriesWorkout">Workout day calories</label>
-                <input id="goalCaloriesWorkout" type="number" inputmode="numeric" min="0" placeholder="e.g. 2300" required />
-              </div>
-              <div class="field">
-                <label for="goalCaloriesRest">Rest day calories</label>
-                <input id="goalCaloriesRest" type="number" inputmode="numeric" min="0" placeholder="e.g. 2100" required />
-              </div>
-              <div class="field">
-                <label for="goalProtein">Protein (g/day)</label>
-                <input id="goalProtein" type="number" inputmode="numeric" min="0" placeholder="e.g. 175" required />
-              </div>
-              <div class="field">
-                <label for="goalWorkouts">Workouts / week</label>
-                <input id="goalWorkouts" type="number" inputmode="numeric" min="0" placeholder="e.g. 2" required />
-              </div>
-              <div class="field">
-                <label for="goalWeeklyLoss">Target weekly loss (lbs)</label>
-                <input id="goalWeeklyLoss" type="number" inputmode="decimal" step="0.1" min="0" placeholder="e.g. 0.5" required />
-              </div>
+          <h2>Settings</h2>
+
+          <div class="grid2 mt12">
+            <div>
+              <label for="goalWeeklyLoss">Goal weekly loss (lbs)</label>
+              <input id="goalWeeklyLoss" type="number" inputmode="decimal" step="0.1" placeholder="0.5" />
             </div>
-
-            <div class="divider"></div>
-            <div class="field">
-              <label for="tacoBellPlan">Planned Taco Bell Order (Uber night)</label>
-              <input id="tacoBellPlan" type="text" maxlength="120" placeholder="e.g., Beefy 5-Layer + 1 soft taco + diet drink" />
-              <div class="mutedSmall">No box meals. Pre-commit the order.</div>
+            <div>
+              <label for="goalWorkoutsPerWeek">Goal workouts/week</label>
+              <input id="goalWorkoutsPerWeek" type="number" inputmode="numeric" placeholder="3" />
             </div>
-
-            <button class="btn btnPrimary" type="submit">Save Goals</button>
-          </form>
-        </div>
-
-        <div class="card">
-          <div class="cardTitle">Data</div>
-          <div class="stack">
-            <button class="btn btnGhost" id="sampleDataBtn" type="button">Load Sample Data</button>
-            <button class="btn btnGhost" id="exportBtn" type="button">Export JSON</button>
-            <label class="btn btnGhost fileBtn" for="importFile">Import JSON</label>
-            <input id="importFile" type="file" accept="application/json" hidden />
-            <button class="btn btnDanger" id="wipeBtn" type="button">Reset All Data</button>
           </div>
-          <div class="mutedSmall" id="dataHint">All data stays on your device (localStorage).</div>
+
+          <div class="grid2 mt12">
+            <div>
+              <label for="goalProtein">Protein goal (g/day)</label>
+              <input id="goalProtein" type="number" inputmode="numeric" placeholder="180" />
+            </div>
+            <div>
+              <label for="goalCaloriesWorkout">Workout day calories</label>
+              <input id="goalCaloriesWorkout" type="number" inputmode="numeric" placeholder="2400" />
+            </div>
+          </div>
+
+          <div class="grid2 mt12">
+            <div>
+              <label for="goalCaloriesRest">Rest day calories</label>
+              <input id="goalCaloriesRest" type="number" inputmode="numeric" placeholder="2100" />
+            </div>
+            <div>
+              <label for="streakCountsMeals">Streak counts meals?</label>
+              <select id="streakCountsMeals">
+                <option value="no" selected>No</option>
+                <option value="yes">Yes</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row mt12">
+            <button class="btn primary" id="saveSettingsBtn" type="button">Save settings</button>
+            <button class="btn" id="resetAllBtn" type="button">Reset ALL data</button>
+          </div>
+
+          <div class="divider mt12"></div>
+
+          <h3>Import / Export</h3>
+          <div class="subtle">Export makes a backup JSON file. Import restores from that file.</div>
+          <div class="row mt12">
+            <button class="btn" id="exportBtn2" type="button">Export JSON</button>
+            <button class="btn" id="importBtn2" type="button">Import JSON</button>
+          </div>
         </div>
 
         <div class="card">
-          <div class="cardTitle">About</div>
-          <div class="mutedSmall">
-            Mobile-only PWA. No servers. No accounts. Just consistency.
+          <h3>Home Screen app</h3>
+          <div class="subtle">
+            In Safari: Share → <b>Add to Home Screen</b>. Then open from your Home Screen for the “real app” feel.
           </div>
         </div>
       </section>
     </main>
 
-    <nav class="bottomNav" aria-label="Bottom navigation">
-      <button class="tab" data-tab="dashboard" aria-label="Dashboard">
-        <span class="tabIcon">🏠</span>
-        <span class="tabText">Dashboard</span>
-      </button>
-      <button class="tab" data-tab="weight" aria-label="Weight">
-        <span class="tabIcon">⚖️</span>
-        <span class="tabText">Weight</span>
-      </button>
-      <button class="tab" data-tab="workouts" aria-label="Workouts">
-        <span class="tabIcon">🏋️</span>
-        <span class="tabText">Workouts</span>
-      </button>
-      <button class="tab" data-tab="macros" aria-label="Macros">
-        <span class="tabIcon">🍽️</span>
-        <span class="tabText">Macros</span>
-      </button>
-      <button class="tab" data-tab="settings" aria-label="Settings">
-        <span class="tabIcon">⚙️</span>
-        <span class="tabText">Settings</span>
-      </button>
+    <nav class="nav" aria-label="Bottom navigation">
+      <button class="navBtn active" data-target="dashboard" type="button"><span class="navIcon">🏠</span><span class="navText">Home</span></button>
+      <button class="navBtn" data-target="weight" type="button"><span class="navIcon">⚖️</span><span class="navText">Weight</span></button>
+      <button class="navBtn" data-target="macros" type="button"><span class="navIcon">🥗</span><span class="navText">Macros</span></button>
+      <button class="navBtn" data-target="workouts" type="button"><span class="navIcon">🏋️</span><span class="navText">Workouts</span></button>
+      <button class="navBtn" data-target="meals" type="button"><span class="navIcon">🛒</span><span class="navText">Meals</span></button>
+      <button class="navBtn" data-target="settings" type="button"><span class="navIcon">⚙️</span><span class="navText">Settings</span></button>
     </nav>
 
-    <!-- modal -->
-    <div class="modalBackdrop" id="modalBackdrop" hidden>
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-        <div class="modalHeader">
-          <div class="modalTitle" id="modalTitle">—</div>
-          <button class="btn btnGhost" id="modalCloseBtn" type="button" aria-label="Close">✕</button>
+    <!-- Quick Add Modal -->
+    <div class="modalBackdrop hidden" id="modalBackdrop"></div>
+    <div class="modal hidden" id="quickAddModal" role="dialog" aria-modal="true" aria-label="Quick Add">
+      <div class="modalHeader">
+        <div class="modalTitle">Quick Add (Today)</div>
+        <button class="iconBtn" id="closeModalBtn" type="button" aria-label="Close">✕</button>
+      </div>
+
+      <div class="modalBody">
+        <div class="grid2 mt12">
+          <div>
+            <label for="qaWeight">Weight (lbs)</label>
+            <input id="qaWeight" type="number" inputmode="decimal" step="0.1" placeholder="195.0" />
+          </div>
+          <div>
+            <label for="qaCalories">Calories</label>
+            <input id="qaCalories" type="number" inputmode="numeric" placeholder="2200" />
+          </div>
         </div>
-        <div class="modalBody" id="modalBody"></div>
-        <div class="modalFooter" id="modalFooter"></div>
+
+        <div class="grid2 mt12">
+          <div>
+            <label for="qaProtein">Protein (g)</label>
+            <input id="qaProtein" type="number" inputmode="numeric" placeholder="180" />
+          </div>
+          <div>
+            <label for="qaCardioMins">Cardio minutes</label>
+            <input id="qaCardioMins" type="number" inputmode="numeric" placeholder="20" />
+          </div>
+        </div>
+
+        <div class="row mt12">
+          <button class="btn primary" id="qaSaveBtn" type="button">Save</button>
+          <button class="btn" id="qaClearBtn" type="button">Clear</button>
+        </div>
+
+        <div class="subtle mt12">Streak counts weight/macros/workouts (meals optional in Settings).</div>
       </div>
     </div>
 
-    <div class="toast" id="toast" aria-live="polite" aria-atomic="true" hidden></div>
+    <input type="file" id="importFile" accept="application/json" hidden />
   </div>
 
   <script src="./app.js"></script>
