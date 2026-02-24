@@ -1,4 +1,4 @@
-const CACHE_NAME = "glen-track-v2";
+const CACHE_NAME = "glen-track-v3";
 const ASSETS = [
   "./",
   "./index.html",
