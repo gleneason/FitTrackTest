@@ -2,7 +2,7 @@
    Bump CACHE_NAME to force updates.
 */
 
-const CACHE_NAME = "glen-track-v100";
+const CACHE_NAME = "glen-track-v101";
 
 const ASSETS = [
   "./",
